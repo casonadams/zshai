@@ -1,0 +1,62 @@
+Describe "web documentation and GitHub Pages assets"
+  It "provides valid index.html with core sections"
+    check_html() {
+      test -f "${SHELLSPEC_PROJECT_ROOT}/www/index.html" &&
+        grep -q '<title>zshai' "${SHELLSPEC_PROJECT_ROOT}/www/index.html" &&
+        grep -q 'id="playground"' "${SHELLSPEC_PROJECT_ROOT}/www/index.html" &&
+        grep -q 'id="architecture"' "${SHELLSPEC_PROJECT_ROOT}/www/index.html" &&
+        grep -q 'id="tools"' "${SHELLSPEC_PROJECT_ROOT}/www/index.html" &&
+        grep -q 'id="config"' "${SHELLSPEC_PROJECT_ROOT}/www/index.html" &&
+        echo "valid"
+    }
+    When call check_html
+    The output should eq "valid"
+  End
+
+  It "provides stylesheet with custom properties"
+    check_css() {
+      test -f "${SHELLSPEC_PROJECT_ROOT}/www/css/style.css" &&
+        grep -q -- '--accent-cyan' "${SHELLSPEC_PROJECT_ROOT}/www/css/style.css" &&
+        grep -q -- '--bg-base' "${SHELLSPEC_PROJECT_ROOT}/www/css/style.css" &&
+        echo "valid"
+    }
+    When call check_css
+    The output should eq "valid"
+  End
+
+  It "provides interactive javascript application"
+    check_js() {
+      test -f "${SHELLSPEC_PROJECT_ROOT}/www/js/app.js" &&
+        grep -q 'initTheme' "${SHELLSPEC_PROJECT_ROOT}/www/js/app.js" &&
+        grep -q 'initTerminalPlayground' "${SHELLSPEC_PROJECT_ROOT}/www/js/app.js" &&
+        grep -q 'initProviderGenerator' "${SHELLSPEC_PROJECT_ROOT}/www/js/app.js" &&
+        echo "valid"
+    }
+    When call check_js
+    The output should eq "valid"
+  End
+
+  It "provides valid SVG favicon and nojekyll"
+    check_static() {
+      test -f "${SHELLSPEC_PROJECT_ROOT}/www/.nojekyll" &&
+        test -f "${SHELLSPEC_PROJECT_ROOT}/www/favicon.svg" &&
+        grep -q '<svg' "${SHELLSPEC_PROJECT_ROOT}/www/favicon.svg" &&
+        echo "valid"
+    }
+    When call check_static
+    The output should eq "valid"
+  End
+
+  It "defines GitHub Actions CI workflow with ripwire and pages deployment"
+    check_workflow() {
+      test -f "${SHELLSPEC_PROJECT_ROOT}/.github/workflows/ci.yml" &&
+        grep -q 'ripwire' "${SHELLSPEC_PROJECT_ROOT}/.github/workflows/ci.yml" &&
+        grep -q 'shellspec' "${SHELLSPEC_PROJECT_ROOT}/.github/workflows/ci.yml" &&
+        grep -q 'deploy-pages' "${SHELLSPEC_PROJECT_ROOT}/.github/workflows/ci.yml" &&
+        grep -q 'upload-pages-artifact' "${SHELLSPEC_PROJECT_ROOT}/.github/workflows/ci.yml" &&
+        echo "valid"
+    }
+    When call check_workflow
+    The output should eq "valid"
+  End
+End

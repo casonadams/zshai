@@ -1,0 +1,74 @@
+name: CI
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+    branches: [master, main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Lint & Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install system packages
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y zsh shellcheck shfmt jq curl
+
+      - name: Install ShellSpec
+        run: |
+          curl -fsSL https://raw.githubusercontent.com/shellspec/shellspec/master/install.sh | sh -s -- -y --prefix ~/.local
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Install Ripwire
+        run: |
+          mkdir -p "$HOME/.local/bin"
+          curl -fsSL "https://github.com/redhat-et/ripwire/releases/download/v0.6.5/ripwire-0.6.5-linux-x64.tar.gz" | tar -xz -C "$HOME/.local/bin" --strip-components=1 "ripwire-0.6.5-linux-x64/ripwire"
+          chmod +x "$HOME/.local/bin/ripwire"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          "$HOME/.local/bin/ripwire" --version
+
+      - name: Run lint & quality gate
+        run: ./bin/lint
+
+      - name: Run test suite
+        run: ./test/verify_all.zsh
+
+  deploy-pages:
+    name: Deploy GitHub Pages
+    needs: test
+    if: (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master') && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    concurrency:
+      group: 'pages'
+      cancel-in-progress: false
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: 'www'
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

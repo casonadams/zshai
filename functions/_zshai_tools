@@ -11,13 +11,10 @@ EOF
       _zshai_tool_bash "$cmd"
       ;;
     *)
-      local cmd="$1"
-      local output exit_code
+      local cmd="$1" output="" exit_code=0
       output="$( (eval "$cmd") 2>&1)"
       exit_code=$?
-      if ((exit_code != 0)); then
-        output="$(printf "%s\n[Process exited with code %d]" "${output:-}" "$exit_code")"
-      fi
+      ((exit_code != 0)) && output="$(printf "%s\n[Process exited with code %d]" "${output:-}" "$exit_code")"
       _zshai_truncate "$output"
       ;;
   esac
@@ -98,20 +95,19 @@ EOF
       }
 
       local dir="${file_path:h}"
-      if [[ -n "$dir" && "$dir" != "." ]]; then
-        mkdir -p "$dir" || {
-          print -r -- "Error: failed to create directory: $dir"
-          return 1
-        }
-      fi
+      [[ -n "$dir" && "$dir" != "." ]] && { mkdir -p "$dir" || {
+        print -r -- "Error: failed to create directory: $dir"
+        return 1
+      }; }
 
       local tmp="${file_path}.tmp.$$"
+      trap "rm -f \"$tmp\"" EXIT INT TERM
+
       printf "%s" "$content" >"$tmp" || {
         print -r -- "Error: failed to write to $tmp"
         return 1
       }
       mv -f "$tmp" "$file_path" || {
-        rm -f "$tmp"
         print -r -- "Error: failed to replace $file_path"
         return 1
       }
@@ -155,8 +151,7 @@ EOF
         return 0
       }
 
-      local content
-      content="$(
+      local content="$(
         <"$file_path"
         printf x
       )"
@@ -178,12 +173,13 @@ EOF
 
       local result="${split_parts[1]}${new_text}${split_parts[2]}"
       local tmp="${file_path}.tmp.$$"
+      trap "rm -f \"$tmp\"" EXIT INT TERM
+
       printf "%s" "$result" >"$tmp" || {
         print -r -- "Error: failed to write to temporary file"
         return 1
       }
       mv -f "$tmp" "$file_path" || {
-        rm -f "$tmp"
         print -r -- "Error: failed to update $file_path"
         return 1
       }
@@ -198,17 +194,12 @@ _zshai_tools_list() {
 }
 
 _zshai_tools_definitions() {
-  local -a tool_names
-  tool_names=(${=ZSHAI_ACTIVE_TOOLS:-bash read write edit})
-
   local -a defs
-  for name in "${tool_names[@]}"; do
-    local fn="_zshai_tool_${name}"
-    if (($+functions[$fn])); then
-      defs+=("$($fn definition)")
-    fi
+  local name fn
+  for name in ${=ZSHAI_ACTIVE_TOOLS:-bash read write edit}; do
+    fn="_zshai_tool_${name}"
+    (($+functions[$fn])) && defs+=("$($fn definition)")
   done
-
   printf "%s\n" "${defs[@]}" | jq -s -c .
 }
 
@@ -216,12 +207,7 @@ _zshai_tools_exec() {
   local tool_name="${(L)1}"
   local args_json="$2"
 
-  if ! (($+functions[_zshai_config_get])); then
-    autoload -Uz _zshai_config _zshai_config_get
-  fi
-
-  local safe_mode
-  safe_mode="$(_zshai_config_get safe_mode)"
+  local safe_mode="$(_zshai_config_get safe_mode 2>/dev/null || echo 0)"
   if [[ "$safe_mode" == "1" ]]; then
     case "$tool_name" in
       bash | write | edit)
@@ -251,15 +237,9 @@ _zshai_tools() {
   local cmd="$1"
   shift
   case "$cmd" in
-    definitions)
-      _zshai_tools_definitions "$@"
-      ;;
-    exec)
-      _zshai_tools_exec "$@"
-      ;;
-    list)
-      _zshai_tools_list "$@"
-      ;;
+    definitions) _zshai_tools_definitions "$@" ;;
+    exec) _zshai_tools_exec "$@" ;;
+    list) _zshai_tools_list "$@" ;;
     *)
       print -u2 "Usage: _zshai_tools <definitions|exec <tool> <json>|list>"
       return 1
