@@ -1,3 +1,33 @@
+_zshai_engine_normalize_tool_calls() {
+  local tc="$1"
+  [[ -z "$tc" || "$tc" == "[]" || "$tc" == "null" ]] && return 0
+
+  print -r -- "$tc" | jq -c '
+    map(
+      (if .function.name == "echo" or .function.name == "cat" or .function.name == "ls" or .function.name == "pwd" or .function.name == "grep" then
+        .function.arguments = "\(.function.name) \(.function.arguments | if type == "string" then . else tojson end)" |
+        .function.name = "bash"
+      else . end) |
+      select(.function.name == "bash" or .function.name == "read" or .function.name == "write" or .function.name == "edit" or .function.name == "websearch") |
+      .function.name as $fn |
+      .function.arguments = (
+        (.function.arguments | if type == "string" then (fromjson? // .) else . end) |
+        if type == "object" then
+          tojson
+        elif $fn == "bash" then
+          {command: (tostring)} | tojson
+        elif $fn == "read" then
+          {path: (tostring)} | tojson
+        elif $fn == "websearch" then
+          {query: (tostring)} | tojson
+        else
+          tojson
+        end
+      )
+    ) | if length > 0 then . else empty end
+  ' 2>/dev/null
+}
+
 _zshai_engine_extract_tools() {
   local raw_content="$1"
   local clean_content tool_calls_json=""
@@ -96,24 +126,7 @@ in_b { cmd = cmd (length(cmd) > 0 ? "\n" : "") $0; }
     fi
   fi
 
-  if [[ -n "$tool_calls_json" && "$tool_calls_json" != "[]" ]]; then
-    tool_calls_json=$(print -r -- "$tool_calls_json" | jq -c '
-      map(
-        if .function.name == "bash" or .function.name == "read" or .function.name == "write" or .function.name == "edit" or .function.name == "websearch" then
-          .
-        elif .function.name == "echo" or .function.name == "cat" or .function.name == "ls" or .function.name == "pwd" or .function.name == "grep" then
-          .function = {
-            name: "bash",
-            arguments: {command: "\(.function.name) \(.function.arguments | if type == "string" then . else tojson end)"} | tojson
-          }
-        else
-          empty
-        end
-      ) | if length > 0 then . else empty end
-    ' 2>/dev/null)
-  fi
-
-  print -r -- "$tool_calls_json"
+  _zshai_engine_normalize_tool_calls "$tool_calls_json"
 }
 
 _zshai_engine_exec_calls() {
@@ -247,6 +260,7 @@ _zshai_engine() {
         raw_content=$(print -r -- "$response" | jq -r '.choices[0].message.content // empty' 2>/dev/null)
         [[ -n "$raw_content" ]] && tool_calls_json=$(_zshai_engine_extract_tools "$raw_content")
       fi
+      [[ -n "$tool_calls_json" ]] && tool_calls_json=$(_zshai_engine_normalize_tool_calls "$tool_calls_json")
     fi
 
     if [[ -z "$tool_calls_json" || "$tool_calls_json" == "[]" || "$tool_calls_json" == "null" ]]; then
