@@ -166,13 +166,13 @@ _zshai_engine_exec_calls() {
       --arg tool_name "$tool_name" \
       --argjson tool_args "$tool_args" \
       --argjson step "$current_step" \
-      '{event: $event, tool_name: $tool_name, tool_args: $tool_args, step: $step}' 2>/dev/null ||
+      '{event: $event, tool_name: $tool_name, tool_args: $tool_args, args: $tool_args, step: $step, turn: $step}' 2>/dev/null ||
       jq -n \
         --arg event "tool_call" \
         --arg tool_name "$tool_name" \
         --arg tool_args "$tool_args" \
         --argjson step "$current_step" \
-        '{event: $event, tool_name: $tool_name, tool_args: $tool_args, step: $step}' 2>/dev/null)
+        '{event: $event, tool_name: $tool_name, tool_args: $tool_args, args: $tool_args, step: $step, turn: $step}' 2>/dev/null)
 
     hook_res=$(_zshai_hook "tool_call" "$hook_payload")
     hook_action=$(print -r -- "$hook_res" | jq -r '.action // empty' 2>/dev/null)
@@ -221,14 +221,14 @@ _zshai_engine_exec_calls() {
           --argjson tool_args "$tool_args" \
           --arg output "$tool_output" \
           --argjson step "$current_step" \
-          '{event: $event, tool_name: $tool_name, tool_args: $tool_args, output: $output, step: $step}' 2>/dev/null ||
+          '{event: $event, tool_name: $tool_name, tool_args: $tool_args, args: $tool_args, output: $output, step: $step, turn: $step}' 2>/dev/null ||
           jq -n \
             --arg event "tool_result" \
             --arg tool_name "$tool_name" \
             --arg tool_args "$tool_args" \
             --arg output "$tool_output" \
             --argjson step "$current_step" \
-            '{event: $event, tool_name: $tool_name, tool_args: $tool_args, output: $output, step: $step}' 2>/dev/null)
+            '{event: $event, tool_name: $tool_name, tool_args: $tool_args, args: $tool_args, output: $output, step: $step, turn: $step}' 2>/dev/null)
         hook_res=$(_zshai_hook "tool_result" "$result_payload")
         hook_action=$(print -r -- "$hook_res" | jq -r '.action // empty' 2>/dev/null)
         if [[ "$hook_action" == "rewrite_result" ]]; then
