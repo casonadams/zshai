@@ -96,13 +96,20 @@ function bindTabSwitcher(tabSelector, onSelect) {
   });
 }
 
-function initInstallSwitcher() {
-  const codeEl = document.getElementById("installCode");
-  if (!codeEl) return;
-  bindTabSwitcher(".install-tab", (tab) => {
-    const key = tab.getAttribute("data-install");
-    if (INSTALL_SNIPPETS[key]) codeEl.textContent = INSTALL_SNIPPETS[key];
+function setupTabViewer(tabSelector, containerId, dataMap, dataAttr, asHtml) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+  bindTabSwitcher(tabSelector, (tab) => {
+    const val = tab.getAttribute(dataAttr);
+    if (dataMap[val]) {
+      if (asHtml) container.innerHTML = dataMap[val].trim();
+      else container.textContent = dataMap[val];
+    }
   });
+}
+
+function initInstallSwitcher() {
+  setupTabViewer(".install-tab", "installCode", INSTALL_SNIPPETS, "data-install", false);
 }
 
 /* =========================================================================
@@ -204,12 +211,7 @@ const TERMINAL_SCENARIOS = {
 };
 
 function initTerminalPlayground() {
-  const screen = document.getElementById("terminalScreen");
-  if (!screen) return;
-  bindTabSwitcher(".demo-tab", (tab) => {
-    const mode = tab.getAttribute("data-mode");
-    if (TERMINAL_SCENARIOS[mode]) screen.innerHTML = TERMINAL_SCENARIOS[mode].trim();
-  });
+  setupTabViewer(".demo-tab", "terminalScreen", TERMINAL_SCENARIOS, "data-mode", true);
 }
 
 /* =========================================================================
