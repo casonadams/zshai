@@ -85,20 +85,23 @@ git clone https://github.com/casonadams/zshai.git ~/.zshai
 source ~/.zshai/zshai.plugin.zsh`
 };
 
-function initInstallSwitcher() {
-  const tabs = document.querySelectorAll(".install-tab");
-  const codeEl = document.getElementById("installCode");
-  if (!codeEl) return;
-
+function bindTabSwitcher(tabSelector, onSelect) {
+  const tabs = document.querySelectorAll(tabSelector);
   tabs.forEach((tab) => {
     tab.addEventListener("click", () => {
       tabs.forEach((t) => t.classList.remove("active"));
       tab.classList.add("active");
-      const key = tab.getAttribute("data-install");
-      if (INSTALL_SNIPPETS[key]) {
-        codeEl.textContent = INSTALL_SNIPPETS[key];
-      }
+      onSelect(tab);
     });
+  });
+}
+
+function initInstallSwitcher() {
+  const codeEl = document.getElementById("installCode");
+  if (!codeEl) return;
+  bindTabSwitcher(".install-tab", (tab) => {
+    const key = tab.getAttribute("data-install");
+    if (INSTALL_SNIPPETS[key]) codeEl.textContent = INSTALL_SNIPPETS[key];
   });
 }
 
@@ -201,19 +204,11 @@ const TERMINAL_SCENARIOS = {
 };
 
 function initTerminalPlayground() {
-  const tabs = document.querySelectorAll(".demo-tab");
   const screen = document.getElementById("terminalScreen");
   if (!screen) return;
-
-  tabs.forEach((tab) => {
-    tab.addEventListener("click", () => {
-      tabs.forEach((t) => t.classList.remove("active"));
-      tab.classList.add("active");
-      const mode = tab.getAttribute("data-mode");
-      if (TERMINAL_SCENARIOS[mode]) {
-        screen.innerHTML = TERMINAL_SCENARIOS[mode].trim();
-      }
-    });
+  bindTabSwitcher(".demo-tab", (tab) => {
+    const mode = tab.getAttribute("data-mode");
+    if (TERMINAL_SCENARIOS[mode]) screen.innerHTML = TERMINAL_SCENARIOS[mode].trim();
   });
 }
 
