@@ -1,3 +1,45 @@
+_zshai_repl_eof() {
+  if [[ -z "$BUFFER" ]]; then
+    typeset -g _zshai_eof_pressed=1
+    zle send-break
+  else
+    zle delete-char
+  fi
+}
+
+_zshai_repl_read_line() {
+  typeset -g line=""
+  typeset -g _zshai_eof_pressed=0
+  local sigint=0
+  TRAPINT() {
+    sigint=1
+    return 130
+  }
+
+  if [[ -t 0 ]]; then
+    vared -h -p 'zshai> ' -c line 2>/dev/null
+    if (($? != 0)); then
+      ((_zshai_eof_pressed == 1)) && {
+        print "exit"
+        return 2
+      }
+      print ""
+      return 1
+    fi
+  else
+    read -r "line?zshai> " || {
+      print ""
+      return 2
+    }
+  fi
+
+  line="${line#"${line%%[![:space:]]*}"}"
+  line="${line%"${line##*[![:space:]]}"}"
+  [[ -z "$line" ]] && return 1
+  print -s -- "$line"
+  return 0
+}
+
 _zshai_repl_cmd() {
   local cmd="$1"
   case "$cmd" in
@@ -78,66 +120,25 @@ _zshai_repl() {
   fi
 
   if [[ -t 0 ]]; then
-    _zshai_repl_eof() {
-      if [[ -z "$BUFFER" ]]; then
-        typeset -g _zshai_eof_pressed=1
-        zle send-break
-      else
-        zle delete-char
-      fi
-    }
     zle -N _zshai_repl_eof 2>/dev/null || true
     bindkey '^D' _zshai_repl_eof 2>/dev/null || true
     bindkey '^R' history-beginning-search-backward 2>/dev/null || true
   fi
 
   typeset -g repl_transcript="[]"
-  local line="" sigint_received=0
-  TRAPINT() {
-    sigint_received=1
-    return 130
-  }
 
   while true; do
-    line=""
-    sigint_received=0
-    typeset -g _zshai_eof_pressed=0
-    if [[ -t 0 ]]; then
-      vared -h -p 'zshai> ' -c line 2>/dev/null
-      local vared_ret=$?
-      if ((vared_ret != 0)); then
-        if ((_zshai_eof_pressed == 1)); then
-          print "exit"
-          break
-        else
-          print ""
-          continue
-        fi
-      fi
-    else
-      if ! read -r "line?zshai> "; then
-        print ""
-        break
-      fi
-    fi
-
-    line="${line#"${line%%[![:space:]]*}"}"
-    line="${line%"${line##*[![:space:]]}"}"
-    [[ -z "$line" ]] && continue
-    print -s -- "$line"
-
-    if [[ "$line" == "exit" || "$line" == "/exit" || "$line" == "quit" || "$line" == "/quit" ]]; then
+    _zshai_repl_read_line || {
+      (($? == 1)) && continue
       break
-    fi
+    }
 
-    if _zshai_repl_cmd "$line"; then
-      continue
-    fi
+    [[ "$line" == "exit" || "$line" == "/exit" || "$line" == "quit" || "$line" == "/quit" ]] && break
+
+    _zshai_repl_cmd "$line" && continue
 
     _zshai_engine "$@" --history "$repl_transcript" "$line"
-    if (($? == 0)) && [[ -n "$ZSHAI_LAST_HISTORY" ]]; then
-      repl_transcript="$ZSHAI_LAST_HISTORY"
-    fi
+    (($? == 0)) && [[ -n "$ZSHAI_LAST_HISTORY" ]] && repl_transcript="$ZSHAI_LAST_HISTORY"
   done
 }
 
@@ -184,8 +185,6 @@ Options:
   -b, --base-url <url>     Provider API base URL override
   -s, --step-limit <n>     Maximum agent execution steps (default: 0 = unlimited)
   --safe                   Prompt before executing mutating tools
-  --no-websearch           Disable DuckDuckGo web search tool
-  --websearch              Force enable web search tool (default: enabled)
   -v, --verbose            Enable verbose output
   -h, --help               Show this help message
 EOF
@@ -214,12 +213,6 @@ EOF
         ;;
       --safe)
         export ZSHAI_SAFE=1
-        ;;
-      --no-websearch)
-        export ZSHAI_WEBSEARCH=0
-        ;;
-      --websearch)
-        export ZSHAI_WEBSEARCH=1
         ;;
       -v | --verbose)
         engine_opts+=(-v)
