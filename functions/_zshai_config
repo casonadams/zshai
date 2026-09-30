@@ -1,0 +1,74 @@
+_zshai_config_check_deps() {
+  ! (($+commands[curl])) && {
+    print -u2 "Error: 'curl' is required for zshai but was not found in PATH"
+    return 1
+  }
+  ! (($+commands[jq])) && {
+    print -u2 "Error: 'jq' is required for zshai but was not found in PATH"
+    return 1
+  }
+  return 0
+}
+
+_zshai_config_get() {
+  case "$1" in
+    base_url) print -r -- "${ZSHAI_BASE_URL:-${OPENAI_BASE_URL:-http://localhost:11434/v1}}" ;;
+    api_key) print -r -- "${ZSHAI_API_KEY:-${OPENAI_API_KEY:-ollama}}" ;;
+    model) print -r -- "${ZSHAI_MODEL:-${OPENAI_MODEL:-qwen2.5-coder:7b}}" ;;
+    max_steps) print -r -- "${ZSHAI_MAX_STEPS:-0}" ;;
+    max_tokens) print -r -- "${ZSHAI_MAX_TOKENS:-${OPENAI_MAX_TOKENS:-64000}}" ;;
+    num_ctx) print -r -- "${ZSHAI_NUM_CTX:-auto}" ;;
+    thinking) print -r -- "${ZSHAI_THINKING:-off}" ;;
+    safe_mode) print -r -- "${ZSHAI_SAFE:-0}" ;;
+    stream) print -r -- "${ZSHAI_STREAM:-1}" ;;
+    timeout) print -r -- "${ZSHAI_TIMEOUT:-60}" ;;
+    *)
+      print -u2 "Error: unknown config key: $1"
+      return 1
+      ;;
+  esac
+}
+
+_zshai_config() {
+  _zshai_config_check_deps || return 1
+
+  local cmd="${1:-list}"
+  case "$cmd" in
+    get)
+      shift
+      _zshai_config_get "$@"
+      ;;
+    list)
+      printf "%-12s %s\n" "base_url:" "$(_zshai_config_get base_url)"
+      local raw_key
+      raw_key="$(_zshai_config_get api_key)"
+      if [[ "$raw_key" == "ollama" ]]; then
+        printf "%-12s %s\n" "api_key:" "ollama (default)"
+      elif [[ -n "$raw_key" ]]; then
+        printf "%-12s %s\n" "api_key:" "${raw_key[1,3]}...${raw_key[-4,-1]} (configured)"
+      else
+        printf "%-12s %s\n" "api_key:" "(empty)"
+      fi
+      printf "%-12s %s\n" "model:" "$(_zshai_config_get model)"
+      printf "%-12s %s\n" "max_steps:" "$([[ $(_zshai_config_get max_steps) == "0" ]] && echo "unlimited (0)" || _zshai_config_get max_steps)"
+      printf "%-12s %s\n" "max_tokens:" "$(_zshai_config_get max_tokens)"
+      printf "%-12s %s\n" "num_ctx:" "$(_zshai_config_get num_ctx)"
+      printf "%-12s %s\n" "safe_mode:" "$(_zshai_config_get safe_mode)"
+      printf "%-12s %s\n" "stream:" "$(_zshai_config_get stream)"
+      printf "%-12s %s\n" "thinking:" "$(_zshai_config_get thinking)"
+      printf "%-12s %s\n" "timeout:" "$(_zshai_config_get timeout)"
+      ;;
+    check)
+      return 0
+      ;;
+    base_url | api_key | model | max_steps | max_tokens | num_ctx | safe_mode | stream | thinking | timeout)
+      _zshai_config_get "$cmd"
+      ;;
+    *)
+      print -u2 "Usage: zshai config [list|get <key>|<key>]"
+      return 1
+      ;;
+  esac
+}
+
+_zshai_config "$@"

@@ -1,0 +1,252 @@
+_zshai_engine_extract_tools() {
+  local raw_content="$1"
+  local clean_content tool_calls_json=""
+
+  # Tier 1: Entire content is JSON object or array
+  clean_content=$(print -r -- "$raw_content" | sed -E -e '/^[[:space:]]*```/d' -e 's/<\/?tool_call>//g')
+  tool_calls_json=$(print -r -- "$clean_content" | jq -c '
+    if type == "object" and .name and (.arguments or .parameters) then
+      [{id: "call_parsed_0", type: "function", function: {name: .name, arguments: ((.arguments // .parameters) | if type == "string" then . else tojson end)}}]
+    elif type == "array" and (.[0] | type == "object" and .name and (.arguments or .parameters)) then
+      [range(0; length) as $i | {id: "call_parsed_\($i)", type: "function", function: {name: .[$i].name, arguments: (((.[$i].arguments // .[$i].parameters)) | if type == "string" then . else tojson end)}}]
+    else
+      empty
+    end
+  ' 2>/dev/null | jq -s -c 'add // empty' 2>/dev/null)
+
+  # Tier 2: Embedded JSON blocks inside markdown fences or text
+  if [[ -z "$tool_calls_json" || "$tool_calls_json" == "[]" || "$tool_calls_json" == "null" ]]; then
+    tool_calls_json=""
+    local block_tools
+    block_tools=$(print -r -- "$raw_content" | awk '
+BEGIN { in_fence = 0; brace_depth = 0; buf = ""; }
+/```/ {
+  if (in_fence) {
+    if (length(buf) > 0) { print buf; print "---TOOL_SEP---"; buf = ""; }
+    in_fence = 0;
+  } else { in_fence = 1; }
+  next;
+}
+in_fence { buf = buf (length(buf) > 0 ? "\n" : "") $0; next; }
+!in_fence {
+  line = $0;
+  n_open = gsub(/\{/, "{", line);
+  n_close = gsub(/\}/, "}", line);
+  if (brace_depth == 0 && n_open > 0) {
+    idx = index($0, "{"); buf = substr($0, idx); brace_depth = n_open - n_close;
+  } else if (brace_depth > 0) {
+    buf = buf "\n" $0; brace_depth += n_open - n_close;
+  }
+  if (brace_depth <= 0 && length(buf) > 0) {
+    if (index(buf, "\"name\"") > 0 && (index(buf, "\"arguments\"") > 0 || index(buf, "\"parameters\"") > 0)) {
+      print buf; print "---TOOL_SEP---";
+    }
+    buf = ""; brace_depth = 0;
+  }
+}')
+    if [[ -n "$block_tools" ]]; then
+      tool_calls_json=$(print -r -- "$block_tools" | jq -R -s -c '
+        [split("---TOOL_SEP---")[] |
+         sub("^\\s+"; "") | sub("\\s+$"; "") |
+         select(length > 0) |
+         fromjson? |
+         select(type == "object" and .name and (.arguments or .parameters))] |
+        if length > 0 then
+          [range(0; length) as $i | {
+            id: "call_parsed_\($i)",
+            type: "function",
+            function: {
+              name: .[$i].name,
+              arguments: ((.[$i].arguments // .[$i].parameters) | if type == "string" then . else tojson end)
+            }
+          }]
+        else
+          empty
+        end
+      ' 2>/dev/null)
+    fi
+  fi
+
+  # Tier 3: Standalone ```bash / ```sh code blocks
+  if [[ -z "$tool_calls_json" || "$tool_calls_json" == "[]" || "$tool_calls_json" == "null" ]]; then
+    tool_calls_json=""
+    local bash_block
+    bash_block=$(print -r -- "$raw_content" | awk '
+BEGIN { in_b = 0; cmd = ""; }
+/^[[:space:]]*```(bash|sh|zsh)[[:space:]]*$/ { in_b = 1; cmd = ""; next; }
+/^[[:space:]]*```[[:space:]]*$/ {
+  if (in_b && length(cmd) > 0) {
+    sub(/^[[:space:]]+/, "", cmd);
+    sub(/[[:space:]]+$/, "", cmd);
+    print cmd;
+  }
+  in_b = 0; next;
+}
+in_b { cmd = cmd (length(cmd) > 0 ? "\n" : "") $0; }
+')
+    if [[ -n "$bash_block" ]]; then
+      tool_calls_json=$(jq -n --arg cmd "$bash_block" '[{
+        id: "call_auto_bash_0",
+        type: "function",
+        function: {
+          name: "bash",
+          arguments: {command: $cmd} | tojson
+        }
+      }]')
+    fi
+  fi
+
+  print -r -- "$tool_calls_json"
+}
+
+_zshai_engine_exec_calls() {
+  local tool_calls_json="$1"
+  local quiet="${2:-0}"
+  local tool_id="" tool_name="" tool_args="" norm_args="" tool_output=""
+  local num_calls=0 i=0
+  num_calls=$(print -r -- "$tool_calls_json" | jq -r 'length')
+
+  for ((i = 0; i < num_calls; i++)); do
+    tool_id=$(print -r -- "$tool_calls_json" | jq -r ".[$i].id")
+    tool_name=$(print -r -- "$tool_calls_json" | jq -r ".[$i].function.name")
+    tool_args=$(print -r -- "$tool_calls_json" | jq -r ".[$i].function.arguments | if type == \"string\" then . else tojson end")
+    norm_args=$(print -r -- "$tool_args" | jq -c -S . 2>/dev/null || echo "$tool_args")
+
+    if [[ "$tool_name" == "$last_tool" && "$norm_args" == "$last_args" ]]; then
+      ((repeat_count++))
+    else
+      last_tool="$tool_name"
+      last_args="$norm_args"
+      repeat_count=1
+    fi
+
+    tool_output=""
+    if ((repeat_count >= 3)); then
+      tool_output="Repetition guard: tool '$tool_name' called 3 times consecutively with identical arguments. Stop repeating and adjust your strategy."
+      if ((quiet == 0)); then
+        print -u2 -P -- "%F{yellow}[Repetition guard triggered: tool '$tool_name' repeated 3 times]%f"
+      fi
+    else
+      if ((quiet == 0)); then
+        print -u2 -P -- "%F{cyan}▶ ${tool_name}%f %F{242}${tool_args}%f"
+      fi
+      tool_output="$(_zshai_tools exec "$tool_name" "$tool_args")"
+    fi
+
+    transcript=$(print -r -- "$transcript" | jq \
+      --arg id "$tool_id" \
+      --arg name "$tool_name" \
+      --arg content "$tool_output" \
+      '. + [{"role": "tool", "tool_call_id": $id, "name": $name, "content": $content}]')
+  done
+}
+
+_zshai_engine() {
+  autoload -Uz _zshai_config _zshai_config_get _zshai_context _zshai_tools _zshai_provider 2>/dev/null
+
+  local user_prompt="" transcript="" step_limit=""
+  local enable_tools=1 quiet=0 verbose=0
+
+  while (($# > 0)); do
+    case "$1" in
+      --history)
+        shift
+        transcript="$1"
+        ;;
+      -s | --step-limit)
+        shift
+        step_limit="$1"
+        ;;
+      --no-tools) enable_tools=0 ;;
+      -q | --quiet) quiet=1 ;;
+      -v | --verbose) verbose=1 ;;
+      *) user_prompt="${user_prompt:+$user_prompt }$1" ;;
+    esac
+    shift
+  done
+
+  if [[ -z "$user_prompt" && -z "$transcript" ]]; then
+    print -u2 -- "Error: user prompt is required"
+    return 1
+  fi
+
+  local max_steps="${step_limit:-$(_zshai_config_get max_steps)}"
+
+  if [[ -z "$transcript" || "$transcript" == "[]" ]]; then
+    local system_prompt
+    system_prompt="$(_zshai_context)"
+    transcript=$(jq -n \
+      --arg sys "$system_prompt" \
+      --arg user "$user_prompt" \
+      '[
+        {"role": "system", "content": $sys},
+        {"role": "user", "content": $user}
+      ]')
+  else
+    if [[ -n "$user_prompt" ]]; then
+      transcript=$(print -r -- "$transcript" | jq --arg user "$user_prompt" '. + [{"role": "user", "content": $user}]')
+    fi
+  fi
+
+  local tools_json="[]"
+  ((enable_tools == 1)) && tools_json="$(_zshai_tools definitions)"
+
+  typeset -g last_tool="" last_args="" repeat_count=0
+  local step=0 response="" prov_status=0 reasoning=""
+  local tool_calls_json="" raw_content="" final_content="" assistant_msg="" was_streamed=""
+
+  while true; do
+    if ((max_steps > 0 && step >= max_steps)); then
+      print -u2 -- "Reached maximum steps limit ($max_steps). Stopping."
+      typeset -g ZSHAI_LAST_HISTORY="$transcript"
+      return 1
+    fi
+
+    response="$(_zshai_provider call "$transcript" "$tools_json")"
+    prov_status=$?
+    if ((prov_status != 0)) || [[ -z "$response" ]]; then
+      print -u2 -- "Error: failed to get response from provider"
+      typeset -g ZSHAI_LAST_HISTORY="$transcript"
+      return 1
+    fi
+
+    reasoning=$(print -r -- "$response" | jq -r '.choices[0].message.reasoning_content // empty' 2>/dev/null)
+    if [[ -n "$reasoning" && $quiet -eq 0 ]]; then
+      print -u2 -P -- "%F{242}${reasoning}%f"
+    fi
+
+    tool_calls_json=""
+    if ((enable_tools == 1)); then
+      tool_calls_json=$(print -r -- "$response" | jq -c '.choices[0].message.tool_calls | select(. != null and length > 0)' 2>/dev/null)
+      if [[ -z "$tool_calls_json" ]]; then
+        raw_content=$(print -r -- "$response" | jq -r '.choices[0].message.content // empty' 2>/dev/null)
+        if [[ -n "$raw_content" ]]; then
+          tool_calls_json=$(_zshai_engine_extract_tools "$raw_content")
+        fi
+      fi
+    fi
+
+    if [[ -z "$tool_calls_json" || "$tool_calls_json" == "[]" || "$tool_calls_json" == "null" ]]; then
+      final_content="${raw_content:-$(print -r -- "$response" | jq -r '.choices[0].message.content // empty' 2>/dev/null)}"
+      assistant_msg=$(print -r -- "$response" | jq '.choices[0].message')
+      transcript=$(print -r -- "$transcript" | jq --argjson msg "$assistant_msg" '. + [$msg]')
+      typeset -g ZSHAI_LAST_HISTORY="$transcript"
+      was_streamed=$(print -r -- "$response" | jq -r '.streamed // false' 2>/dev/null)
+      if [[ "$was_streamed" == "true" ]]; then
+        print -u2 ""
+      else
+        print -r -- "$final_content"
+      fi
+      return 0
+    fi
+
+    assistant_msg=$(jq -n --argjson tc "$tool_calls_json" '{role: "assistant", tool_calls: $tc}')
+    transcript=$(print -r -- "$transcript" | jq --argjson msg "$assistant_msg" '. + [$msg]')
+
+    _zshai_engine_exec_calls "$tool_calls_json" "$quiet"
+
+    ((step++))
+  done
+}
+
+_zshai_engine "$@"

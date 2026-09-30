@@ -1,0 +1,270 @@
+_zshai_tool_bash() {
+  case "$1" in
+    definition)
+      cat <<'EOF'
+{"type":"function","function":{"name":"bash","description":"Execute a shell command in a dedicated subshell and capture its output and exit code.","parameters":{"type":"object","properties":{"command":{"type":"string","description":"The shell command to execute."}},"required":["command"]}}}
+EOF
+      ;;
+    exec)
+      local cmd
+      cmd=$(print -r -- "$2" | jq -r '.command // empty')
+      _zshai_tool_bash "$cmd"
+      ;;
+    *)
+      local cmd="$1"
+      local output exit_code
+      output="$( (eval "$cmd") 2>&1)"
+      exit_code=$?
+      if ((exit_code != 0)); then
+        output="$(printf "%s\n[Process exited with code %d]" "${output:-}" "$exit_code")"
+      fi
+      _zshai_truncate "$output"
+      ;;
+  esac
+}
+
+_zshai_tool_read() {
+  case "$1" in
+    definition)
+      cat <<'EOF'
+{"type":"function","function":{"name":"read","description":"Read file contents with line numbers and optional line range bounding.","parameters":{"type":"object","properties":{"path":{"type":"string","description":"Path to the file to read."},"start_line":{"type":"integer","description":"1-based starting line number (default 1)."},"limit":{"type":"integer","description":"Maximum number of lines to read (default 200)."}},"required":["path"]}}}
+EOF
+      ;;
+    exec)
+      local file_path start_line limit
+      file_path=$(print -r -- "$2" | jq -r '.path // empty')
+      start_line=$(print -r -- "$2" | jq -r '.start_line // 1')
+      limit=$(print -r -- "$2" | jq -r '.limit // 200')
+      _zshai_tool_read "$file_path" "$start_line" "$limit"
+      ;;
+    *)
+      local file_path="$1"
+      local start_line="${2:-1}"
+      local limit="${3:-200}"
+
+      [[ ! -e "$file_path" ]] && {
+        print -r -- "Error: file not found: $file_path"
+        return 0
+      }
+      [[ -d "$file_path" ]] && {
+        print -r -- "Error: $file_path is a directory"
+        return 0
+      }
+      [[ ! -r "$file_path" ]] && {
+        print -r -- "Error: file not readable: $file_path"
+        return 0
+      }
+      [[ ! -s "$file_path" ]] && {
+        print -r -- "(empty file)"
+        return 0
+      }
+      [[ "$(file -b --mime-encoding "$file_path" 2>/dev/null)" == "binary" ]] && {
+        print -r -- "Error: file appears to be binary: $file_path"
+        return 0
+      }
+
+      local end_line=$((start_line + limit - 1))
+      local result
+      result="$(awk -v start="$start_line" -v end="$end_line" 'NR >= start && NR <= end { printf "%d: %s\n", NR, $0 }' "$file_path")"
+      if [[ -z "$result" ]]; then
+        print -r -- "(no content at specified lines)"
+      else
+        _zshai_truncate "$result"
+      fi
+      ;;
+  esac
+}
+
+_zshai_tool_write() {
+  case "$1" in
+    definition)
+      cat <<'EOF'
+{"type":"function","function":{"name":"write","description":"Create or overwrite a file with specified content.","parameters":{"type":"object","properties":{"path":{"type":"string","description":"Path to the file to write."},"content":{"type":"string","description":"Full file content to write."}},"required":["path","content"]}}}
+EOF
+      ;;
+    exec)
+      local file_path content
+      file_path=$(print -r -- "$2" | jq -r '.path // empty')
+      content=$(print -r -- "$2" | jq -r '.content // empty')
+      _zshai_tool_write "$file_path" "$content"
+      ;;
+    *)
+      local file_path="$1"
+      local content="$2"
+
+      [[ -z "$file_path" ]] && {
+        print -r -- "Error: write requires path"
+        return 1
+      }
+
+      local dir="${file_path:h}"
+      if [[ -n "$dir" && "$dir" != "." ]]; then
+        mkdir -p "$dir" || {
+          print -r -- "Error: failed to create directory: $dir"
+          return 1
+        }
+      fi
+
+      local tmp="${file_path}.tmp.$$"
+      printf "%s" "$content" >"$tmp" || {
+        print -r -- "Error: failed to write to $tmp"
+        return 1
+      }
+      mv -f "$tmp" "$file_path" || {
+        rm -f "$tmp"
+        print -r -- "Error: failed to replace $file_path"
+        return 1
+      }
+
+      local bytes
+      bytes=$(wc -c <"$file_path" | tr -d ' ')
+      print -r -- "Successfully wrote $bytes bytes to $file_path"
+      ;;
+  esac
+}
+
+_zshai_tool_edit() {
+  case "$1" in
+    definition)
+      cat <<'EOF'
+{"type":"function","function":{"name":"edit","description":"Perform exact search-and-replace on an existing file.","parameters":{"type":"object","properties":{"path":{"type":"string","description":"Path to the file to edit."},"old_text":{"type":"string","description":"The exact existing text to replace (must match uniquely)."},"new_text":{"type":"string","description":"The replacement text."}},"required":["path","old_text","new_text"]}}}
+EOF
+      ;;
+    exec)
+      local file_path old_text new_text
+      file_path=$(print -r -- "$2" | jq -r '.path // empty')
+      old_text=$(print -r -- "$2" | jq -r '.old_text // empty')
+      new_text=$(print -r -- "$2" | jq -r '.new_text // empty')
+      _zshai_tool_edit "$file_path" "$old_text" "$new_text"
+      ;;
+    *)
+      local file_path="$1"
+      local old_text="$2"
+      local new_text="$3"
+
+      [[ ! -e "$file_path" ]] && {
+        print -r -- "Error: file not found: $file_path"
+        return 0
+      }
+      [[ -d "$file_path" ]] && {
+        print -r -- "Error: $file_path is a directory"
+        return 0
+      }
+      [[ ! -r "$file_path" || ! -w "$file_path" ]] && {
+        print -r -- "Error: file not readable/writable: $file_path"
+        return 0
+      }
+
+      local content
+      content="$(
+        <"$file_path"
+        printf x
+      )"
+      content="${content%x}"
+
+      local -a split_parts
+      split_parts=("${(@ps:$old_text:)content}")
+
+      if ((${#split_parts} == 1)); then
+        print -r -- "Error: old_text not found in $file_path"
+        return 0
+      fi
+
+      if ((${#split_parts} > 2)); then
+        local count=$((${#split_parts} - 1))
+        print -r -- "Error: old_text is ambiguous ($count matches in $file_path); provide more surrounding context"
+        return 0
+      fi
+
+      local result="${split_parts[1]}${new_text}${split_parts[2]}"
+      local tmp="${file_path}.tmp.$$"
+      printf "%s" "$result" >"$tmp" || {
+        print -r -- "Error: failed to write to temporary file"
+        return 1
+      }
+      mv -f "$tmp" "$file_path" || {
+        rm -f "$tmp"
+        print -r -- "Error: failed to update $file_path"
+        return 1
+      }
+
+      print -r -- "Successfully replaced text in $file_path"
+      ;;
+  esac
+}
+
+_zshai_tools_list() {
+  print -r -- "${ZSHAI_ACTIVE_TOOLS:-bash read write edit}"
+}
+
+_zshai_tools_definitions() {
+  local -a tool_names
+  tool_names=(${=ZSHAI_ACTIVE_TOOLS:-bash read write edit})
+
+  local -a defs
+  for name in "${tool_names[@]}"; do
+    local fn="_zshai_tool_${name}"
+    if (($+functions[$fn])); then
+      defs+=("$($fn definition)")
+    fi
+  done
+
+  printf "%s\n" "${defs[@]}" | jq -s -c .
+}
+
+_zshai_tools_exec() {
+  local tool_name="${(L)1}"
+  local args_json="$2"
+
+  if ! (($+functions[_zshai_config_get])); then
+    autoload -Uz _zshai_config _zshai_config_get
+  fi
+
+  local safe_mode
+  safe_mode="$(_zshai_config_get safe_mode)"
+  if [[ "$safe_mode" == "1" ]]; then
+    case "$tool_name" in
+      bash | write | edit)
+        print -u2 -- "[safe_mode] About to execute $tool_name with arguments:"
+        print -u2 -- "$args_json"
+        print -n -u2 -- "Allow execution? [y/N]: "
+        local answer
+        read -r answer
+        if [[ "$answer" != [yY]* ]]; then
+          print -r -- "Error: tool execution cancelled by user (safe_mode)"
+          return 0
+        fi
+        ;;
+    esac
+  fi
+
+  local fn="_zshai_tool_${tool_name}"
+  if ! (($+functions[$fn])); then
+    print -r -- "Error: unknown tool: $tool_name"
+    return 0
+  fi
+
+  $fn exec "$args_json"
+}
+
+_zshai_tools() {
+  local cmd="$1"
+  shift
+  case "$cmd" in
+    definitions)
+      _zshai_tools_definitions "$@"
+      ;;
+    exec)
+      _zshai_tools_exec "$@"
+      ;;
+    list)
+      _zshai_tools_list "$@"
+      ;;
+    *)
+      print -u2 "Usage: _zshai_tools <definitions|exec <tool> <json>|list>"
+      return 1
+      ;;
+  esac
+}
+
+_zshai_tools "$@"

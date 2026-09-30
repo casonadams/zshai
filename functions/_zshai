@@ -1,0 +1,41 @@
+#compdef zshai
+
+_zshai() {
+  local -a commands
+  commands=(
+    'config:View or query zshai configuration'
+    'lint:Run syntax, format, and complexity/CRAP checks'
+    'repl:Launch interactive multi-turn REPL'
+    'version:Display version information'
+    'help:Show help information'
+  )
+
+  _arguments -C \
+    '(-h --help)'{-h,--help}'[Show help information]' \
+    '(-v --version)'{-v,--version}'[Show version]' \
+    '(-m --model)'{-m,--model}'[Model identifier override]:model:' \
+    '(-b --base-url)'{-b,--base-url}'[Provider API base URL override]:URL:' \
+    '(-s --step-limit)'{-s,--step-limit}'[Maximum execution steps]:steps:' \
+    '--max-tokens[Maximum generation tokens]:tokens:' \
+    '--thinking[Reasoning budget]:thinking level:(off low medium high)' \
+    '--safe[Prompt for confirmation before mutating tool calls]' \
+    '--verbose[Enable verbose output]' \
+    '(-p --prompt)'{-p,--prompt}'[Prompt to execute]:prompt:' \
+    '1: :->command' \
+    '*:: :->args'
+
+  case "$state" in
+    command)
+      _describe -t commands 'zshai command' commands
+      ;;
+    args)
+      case $words[1] in
+        config)
+          _values 'config command' 'list' 'get' 'base_url' 'api_key' 'model' 'max_steps' 'max_tokens' 'num_ctx' 'thinking' 'safe_mode' 'stream' 'timeout'
+          ;;
+      esac
+      ;;
+  esac
+}
+
+_zshai "$@"

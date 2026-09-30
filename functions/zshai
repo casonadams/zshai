@@ -1,0 +1,251 @@
+_zshai_repl_cmd() {
+  local cmd="$1"
+  case "$cmd" in
+    /help)
+      cat <<'EOF'
+REPL Commands:
+  /exit, exit      Quit the REPL
+  /clear           Reset conversation history
+  /model [name]    Show or change active model
+  /thinking [lvl]  Show or change thinking level (off, low, medium, high, N)
+  /config          Show current configuration
+  /help            Show this help
+EOF
+      return 0
+      ;;
+    /clear)
+      typeset -g repl_transcript="[]"
+      print "Conversation reset."
+      return 0
+      ;;
+    /config)
+      _zshai_config list
+      return 0
+      ;;
+    /thinking*)
+      local new_th="${cmd#/thinking}"
+      new_th="${new_th#"${new_th%%[![:space:]]*}"}"
+      if [[ -n "$new_th" ]]; then
+        export ZSHAI_THINKING="$new_th"
+        print "Thinking level set to: $new_th"
+      else
+        print "Current thinking level: $(_zshai_config_get thinking)"
+      fi
+      return 0
+      ;;
+    /model*)
+      local new_model="${cmd#/model}"
+      new_model="${new_model#"${new_model%%[![:space:]]*}"}"
+      if [[ -n "$new_model" ]]; then
+        export ZSHAI_MODEL="$new_model"
+        unset ZSHAI_DISCOVERED_NUM_CTX ZSHAI_DISCOVERED_MODEL
+        print "Model switched to: $new_model"
+      else
+        local cur_model="$(_zshai_config_get model)"
+        local cur_ctx=""
+        if ! (($+functions[_zshai_adapter_ollama_discover_context])); then
+          autoload -Uz _zshai_adapters
+          _zshai_adapters check >/dev/null 2>&1 || true
+        fi
+        if (($+functions[_zshai_adapter_ollama_discover_context])); then
+          cur_ctx="$(_zshai_adapter_ollama_discover_context "$(_zshai_config_get base_url)" "$cur_model")"
+        fi
+        if [[ -n "$cur_ctx" ]]; then
+          print "Current model: $cur_model (context window: $cur_ctx tokens)"
+        else
+          print "Current model: $cur_model"
+        fi
+      fi
+      return 0
+      ;;
+    /*)
+      local first_cmd="${cmd%% *}"
+      print -u2 "Unknown command: $first_cmd (type /help for available commands)"
+      return 0
+      ;;
+  esac
+  return 1
+}
+
+_zshai_repl() {
+  print "zshai 0.1.0 REPL (type /exit or exit to quit, /help for help)"
+
+  if [[ -f "${HISTFILE:-$HOME/.zsh_history}" ]]; then
+    HISTFILE="${HISTFILE:-$HOME/.zsh_history}"
+    HISTSIZE="${HISTSIZE:-10000}"
+    SAVEHIST="${SAVEHIST:-10000}"
+    fc -R "$HISTFILE" 2>/dev/null || true
+  fi
+
+  if [[ -t 0 ]]; then
+    _zshai_repl_eof() {
+      if [[ -z "$BUFFER" ]]; then
+        typeset -g _zshai_eof_pressed=1
+        zle send-break
+      else
+        zle delete-char
+      fi
+    }
+    zle -N _zshai_repl_eof 2>/dev/null || true
+    bindkey '^D' _zshai_repl_eof 2>/dev/null || true
+    bindkey '^R' history-beginning-search-backward 2>/dev/null || true
+  fi
+
+  typeset -g repl_transcript="[]"
+  local line="" sigint_received=0
+  TRAPINT() {
+    sigint_received=1
+    return 130
+  }
+
+  while true; do
+    line=""
+    sigint_received=0
+    typeset -g _zshai_eof_pressed=0
+    if [[ -t 0 ]]; then
+      vared -h -p 'zshai> ' -c line 2>/dev/null
+      local vared_ret=$?
+      if ((vared_ret != 0)); then
+        if ((_zshai_eof_pressed == 1)); then
+          print "exit"
+          break
+        else
+          print ""
+          continue
+        fi
+      fi
+    else
+      if ! read -r "line?zshai> "; then
+        print ""
+        break
+      fi
+    fi
+
+    line="${line#"${line%%[![:space:]]*}"}"
+    line="${line%"${line##*[![:space:]]}"}"
+    [[ -z "$line" ]] && continue
+    print -s -- "$line"
+
+    if [[ "$line" == "exit" || "$line" == "/exit" || "$line" == "quit" || "$line" == "/quit" ]]; then
+      break
+    fi
+
+    if _zshai_repl_cmd "$line"; then
+      continue
+    fi
+
+    _zshai_engine "$@" --history "$repl_transcript" "$line"
+    if (($? == 0)) && [[ -n "$ZSHAI_LAST_HISTORY" ]]; then
+      repl_transcript="$ZSHAI_LAST_HISTORY"
+    fi
+  done
+}
+
+zshai() {
+  autoload -Uz _zshai_config _zshai_config_get _zshai_engine _zshai_adapters 2>/dev/null
+
+  local prompt="" force_repl=0
+  local -a engine_opts
+
+  if (($# > 0)); then
+    case "$1" in
+      config)
+        shift
+        _zshai_config "$@"
+        return $?
+        ;;
+      lint)
+        shift
+        "${ZSHAI_HOME:-${0:A:h:h}}/bin/lint" "$@"
+        return $?
+        ;;
+      repl)
+        shift
+        force_repl=1
+        ;;
+      version | --version | -v)
+        print -r -- "zshai 0.1.0"
+        return 0
+        ;;
+      help | --help | -h)
+        cat <<'EOF'
+zshai - Lightweight pure-Zsh AI agent harness
+
+Usage:
+  zshai [options] "<prompt>"       Execute a one-shot agent turn
+  zshai [options]                  Launch interactive REPL (if TTY)
+  cat file | zshai "<prompt>"      Process prompt with piped input
+  zshai config [list|get <key>]    View configuration
+  zshai version                    Display version
+
+Options:
+  -p, --prompt <text>      Prompt to execute
+  -m, --model <model>      Model identifier override
+  -b, --base-url <url>     Provider API base URL override
+  -s, --step-limit <n>     Maximum agent execution steps (default: 0 = unlimited)
+  --safe                   Prompt before executing mutating tools
+  -v, --verbose            Enable verbose output
+  -h, --help               Show this help message
+EOF
+        return 0
+        ;;
+    esac
+  fi
+
+  while (($# > 0)); do
+    case "$1" in
+      -p | --prompt)
+        shift
+        prompt="$1"
+        ;;
+      -m | --model)
+        shift
+        export ZSHAI_MODEL="$1"
+        ;;
+      -b | --base-url)
+        shift
+        export ZSHAI_BASE_URL="$1"
+        ;;
+      -s | --step-limit)
+        shift
+        engine_opts+=(-s "$1")
+        ;;
+      --safe)
+        export ZSHAI_SAFE=1
+        ;;
+      -v | --verbose)
+        engine_opts+=(-v)
+        ;;
+      -h | --help)
+        zshai --help
+        return 0
+        ;;
+      *)
+        prompt="${prompt:+$prompt }$1"
+        ;;
+    esac
+    shift
+  done
+
+  if ((force_repl == 0)) && [[ ! -t 0 ]]; then
+    local stdin_data
+    stdin_data="$(cat)"
+    if [[ -n "$stdin_data" ]]; then
+      prompt="${prompt:+$prompt"$'\n\n'"}<input>"$'\n'"${stdin_data}"$'\n'"</input>"
+    fi
+  fi
+
+  if [[ -n "$prompt" ]]; then
+    _zshai_engine "${engine_opts[@]}" "$prompt"
+    return $?
+  fi
+
+  if ((force_repl == 0)) && [[ ! -t 0 ]]; then
+    print -u2 -- "Error: no prompt provided"
+    return 1
+  fi
+
+  _zshai_repl "${engine_opts[@]}"
+}
+
+zshai "$@"

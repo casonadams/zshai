@@ -1,0 +1,43 @@
+_zshai_widget() {
+  autoload -Uz _zshai_engine 2>/dev/null
+
+  if [[ -z "$BUFFER" ]]; then
+    print -n '\a'
+    return 0
+  fi
+
+  local old_buffer="$BUFFER"
+  BUFFER="[zshai generating...]"
+  zle -R 2>/dev/null || true
+
+  local result
+  result=$(_zshai_engine --no-tools -q "Given this command line input: '$old_buffer', output ONLY the replacement shell command with no markdown or explanation.")
+  local ret=$?
+
+  if ((ret == 0)) && [[ -n "$result" ]]; then
+    # Strip markdown code blocks if model wrapped output in them
+    result="${result#\`\`\`zsh$'\n'}"
+    result="${result#\`\`\`bash$'\n'}"
+    result="${result#\`\`\`sh$'\n'}"
+    result="${result#\`\`\`$'\n'}"
+    result="${result#\`\`\`}"
+    result="${result%$'\n'\`\`\`}"
+    result="${result%\`\`\`}"
+    # Strip leading/trailing whitespace
+    result="${result#"${result%%[![:space:]]*}"}"
+    result="${result%"${result##*[![:space:]]}"}"
+    if [[ "$result" == \`*\` ]]; then
+      local inner="${result#\`}"
+      inner="${inner%\`}"
+      [[ "$inner" != *\`* ]] && result="$inner"
+    fi
+    BUFFER="$result"
+  else
+    BUFFER="$old_buffer"
+  fi
+
+  CURSOR=${#BUFFER}
+  zle redisplay 2>/dev/null || true
+}
+
+_zshai_widget "$@"

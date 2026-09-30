@@ -1,0 +1,35 @@
+_zshai_truncate() {
+  local text="$1"
+  local max_lines="${2:-200}"
+
+  if [[ -z "$text" ]] && [[ ! -t 0 ]]; then
+    text="$(cat)"
+  fi
+
+  [[ -z "$text" ]] && return 0
+
+  local -a lines
+  lines=("${(@f)text}")
+
+  if ((${#lines} <= max_lines)); then
+    print -r -- "$text"
+    return 0
+  fi
+
+  local head_count=120
+  local tail_count=79
+
+  if ((${#lines} <= head_count + tail_count)); then
+    head_count=$((max_lines * 6 / 10))
+    tail_count=$((max_lines - head_count - 1))
+    ((head_count < 1)) && head_count=1
+    ((tail_count < 1)) && tail_count=1
+  fi
+
+  local omitted=$((${#lines} - head_count - tail_count))
+  print -r -- "${(F)lines[1,head_count]}"
+  print -r -- "... [output truncated: ${omitted} lines omitted] ..."
+  print -r -- "${(F)lines[-tail_count,-1]}"
+}
+
+_zshai_truncate "$@"
