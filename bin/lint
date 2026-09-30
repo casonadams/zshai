@@ -1,0 +1,123 @@
+#!/usr/bin/env zsh
+0="${${ZERO:-${0:#$ZSH_ARGZERO}}:-${(%):-%N}}"
+0="${${(M)0:#/*}:-$PWD/$0}"
+root="${0:A:h:h}"
+cd "$root" || exit 1
+
+local json_mode=0
+if [[ "$1" == "--json" || "$1" == "-j" ]]; then
+  json_mode=1
+fi
+
+typeset -i errors=0
+
+if ((json_mode == 0)); then
+  print -P "%F{cyan}==> 1. Syntax Check (zsh -n)%f"
+fi
+
+local -a files
+files=(functions/* bin/* *.zsh spec/*.sh test/*.zsh(N))
+
+for f in "${files[@]}"; do
+  if ! zsh -n "$f" 2>&1; then
+    ((json_mode == 0)) && print -P "%F{red}FAIL: syntax error in $f%f"
+    ((errors++))
+  fi
+done
+if ((errors == 0 && json_mode == 0)); then
+  print -P "%F{green}PASS: All files have valid syntax.%f"
+fi
+
+if ((json_mode == 0)); then
+  print ""
+  print -P "%F{cyan}==> 2. Format Check (shfmt)%f"
+fi
+
+if (($+commands[shfmt])); then
+  if shfmt -d -i 2 -ci -ln zsh functions/* bin/* *.zsh; then
+    ((json_mode == 0)) && print -P "%F{green}PASS: Formatting adheres to standard Zsh style.%f"
+  else
+    ((json_mode == 0)) && print -P "%F{red}FAIL: Formatting errors detected. Run 'shfmt -w -i 2 -ci -ln zsh functions/* bin/* *.zsh' to fix.%f"
+    ((errors++))
+  fi
+else
+  ((json_mode == 0)) && print -P "%F{yellow}SKIP: shfmt not found on PATH.%f"
+fi
+
+if ((json_mode == 0)); then
+  print ""
+  print -P "%F{cyan}==> 3. Complexity & CRAP Quality Gate (ripwire)%f"
+fi
+
+if (($+commands[ripwire])); then
+  local td
+  td=$(mktemp -d)
+  trap "rm -rf \"$td\"" EXIT INT TERM
+
+  for f in functions/*; do
+    cp "$f" "$td/${f:t}.zsh"
+  done
+
+  local metrics_json
+  metrics_json=$(ripwire "$td" --metrics --json 2>/dev/null)
+  rm -rf "$td"
+
+  if ((json_mode == 1)); then
+    print -r -- "$metrics_json" | jq '[
+      .r[] as $file | $file.s[]? | select(.t == "fn" and .n != "TRAPINT") | {
+        function: .n,
+        file: ($file.p | rtrimstr(".zsh")),
+        cyclomatic: .cx,
+        cognitive: .ccx,
+        loc: .loc,
+        crap: (((.cx * .cx * 0.008) + .cx) * 10 | round / 10),
+        status: (if .ccx > 30 or .cx > 25 or (((.cx * .cx * 0.008) + .cx) > 30) then "FAIL" elif .ccx > 15 or .cx > 15 then "WARN" else "PASS" end)
+      }
+    ] | sort_by(.cognitive) | reverse'
+    exit $errors
+  fi
+
+  printf "\033[1m%-36s %-20s %-5s %-5s %-7s %s\033[0m\n" "Function" "File" "cx" "ccx" "CRAP" "Status"
+  print -- "----------------------------------------------------------------------------------"
+
+  integer qg_failed=0
+  print -r -- "$metrics_json" | jq -r '
+    [ .r[] as $file | $file.s[]? | select(.t == "fn" and .n != "TRAPINT") | {
+        name: .n,
+        file: ($file.p | rtrimstr(".zsh")),
+        cx: .cx,
+        ccx: .ccx,
+        crap: (((.cx * .cx * 0.008) + .cx) * 10 | round / 10),
+        status: (if .ccx > 30 or .cx > 25 or (((.cx * .cx * 0.008) + .cx) > 30) then "FAIL" elif .ccx > 15 or .cx > 15 then "WARN" else "PASS" end)
+      }
+    ] | sort_by(.ccx) | reverse | .[] |
+    "\(.status)\t\(.name)\t\(.file)\t\(.cx)\t\(.ccx)\t\(.crap)"
+  ' | while IFS=$'\t' read -r res_status name file cx ccx crap; do
+    local color="\033[32m"
+    [[ "$res_status" == "WARN" ]] && color="\033[33m"
+    if [[ "$res_status" == "FAIL" ]]; then
+      color="\033[31m"
+      ((qg_failed++))
+    fi
+    printf "%-36s %-20s %-5s %-5s %-7s ${color}%s\033[0m\n" "$name" "$file" "$cx" "$ccx" "$crap" "$res_status"
+  done
+  print -- "----------------------------------------------------------------------------------"
+
+  if ((qg_failed > 0)); then
+    print -P "%F{red}FAIL: Quality Gate exceeded: $qg_failed function(s) over threshold.%f"
+    ((errors += qg_failed))
+  else
+    print -P "%F{green}PASS: Quality Gate satisfied: All functions within complexity & CRAP limits.%f"
+  fi
+else
+  print -P "%F{yellow}SKIP: ripwire not found on PATH.%f"
+fi
+
+print ""
+if ((errors == 0)); then
+  print -P "%F{green}\033[1mAll lint and quality checks passed!\033[0m%f"
+  exit 0
+else
+  print -P "%F{red}\033[1mLint failed with $errors error(s).\033[0m%f"
+  exit 1
+fi
