@@ -31,7 +31,9 @@ if ((json_mode == 0)); then
 fi
 
 if (($+commands[shfmt])); then
-  if shfmt -d -i 2 -ci -ln zsh functions/* bin/* *.zsh; then
+  if ! shfmt -help 2>&1 | grep -q "zsh"; then
+    ((json_mode == 0)) && print -P "%F{yellow}SKIP: installed shfmt does not support Zsh dialect (-ln zsh). Upgrade shfmt to >= 3.10.%f"
+  elif shfmt -d -i 2 -ci -ln zsh functions/* bin/* *.zsh; then
     ((json_mode == 0)) && print -P "%F{green}PASS: Formatting adheres to standard Zsh style.%f"
   else
     ((json_mode == 0)) && print -P "%F{red}FAIL: Formatting errors detected. Run 'shfmt -w -i 2 -ci -ln zsh functions/* bin/* *.zsh' to fix.%f"

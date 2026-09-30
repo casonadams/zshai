@@ -21,8 +21,15 @@ jobs:
       - name: Install system packages
         run: |
           sudo apt-get update
-          sudo apt-get install -y zsh shellcheck shfmt jq curl
+          sudo apt-get install -y zsh shellcheck jq curl
 
+      - name: Install shfmt (v3.14+ with Zsh support)
+        run: |
+          mkdir -p "$HOME/.local/bin"
+          curl -fsSL "https://github.com/mvdan/sh/releases/download/v3.14.1/shfmt_v3.14.1_linux_amd64" -o "$HOME/.local/bin/shfmt"
+          chmod +x "$HOME/.local/bin/shfmt"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          "$HOME/.local/bin/shfmt" --version
       - name: Install ShellSpec
         run: |
           curl -fsSL https://raw.githubusercontent.com/shellspec/shellspec/master/install.sh | sh -s -- -y --prefix ~/.local
