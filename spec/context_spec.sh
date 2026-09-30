@@ -37,6 +37,40 @@ Describe "_zshai_context"
     }
     When call setup_nested
     The output should include "NESTED INSTRUCTIONS FROM .AGENTS"
-    The output should include "<project_instructions path=\"AGENTS.md\">"
+    The output should include "<project_instructions path=\".agents/AGENTS.md\">"
+  End
+
+  It "discovers global ~/.agents/AGENTS.md instructions"
+    setup_global() {
+      fake_home=$(mktemp -d)
+      mkdir -p "${fake_home}/.agents"
+      echo "GLOBAL RULES FROM FAKE HOME" > "${fake_home}/.agents/AGENTS.md"
+      HOME="$fake_home" _zshai_context
+      rm -rf "$fake_home"
+    }
+    When call setup_global
+    The output should include "GLOBAL RULES FROM FAKE HOME"
+    The output should include '<global_instructions path="~/.agents/AGENTS.md">'
+  End
+
+  It "includes both global and repository instructions when both exist"
+    setup_both() {
+      fake_home=$(mktemp -d)
+      fake_repo=$(mktemp -d)
+      mkdir -p "${fake_home}/.agents"
+      echo "GLOBAL TEST RULES" > "${fake_home}/.agents/AGENTS.md"
+      (
+        cd "$fake_repo"
+        git init -q
+        echo "REPO SPECIFIC RULES" > AGENTS.md
+        HOME="$fake_home" _zshai_context
+      )
+      rm -rf "$fake_home" "$fake_repo"
+    }
+    When call setup_both
+    The output should include "GLOBAL TEST RULES"
+    The output should include '<global_instructions path="~/.agents/AGENTS.md">'
+    The output should include "REPO SPECIFIC RULES"
+    The output should include '<project_instructions path="AGENTS.md">'
   End
 End

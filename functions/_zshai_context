@@ -1,12 +1,40 @@
+_zshai_context_instructions() {
+  local global="$1" project="$2" root="$3"
+  [[ -z "$global" && -z "$project" ]] && return 0
+
+  print -r -- ""
+  print -r -- "<project_context>"
+  if [[ -n "$global" && -r "$global" ]]; then
+    print -r -- "<global_instructions path=\"~/.agents/AGENTS.md\">"
+    cat "$global"
+    print -r -- "</global_instructions>"
+  fi
+  if [[ -n "$project" && -r "$project" ]]; then
+    local rel="${project#$root/}"
+    print -r -- "<project_instructions path=\"${rel:-$project:t}\">"
+    cat "$project"
+    print -r -- "</project_instructions>"
+  fi
+  print -r -- "</project_context>"
+}
+
 _zshai_context() {
   autoload -Uz _zshai_tools 2>/dev/null
   _zshai_tools list >/dev/null 2>&1 || true
+  local repo_root
   repo_root="$(git rev-parse --show-toplevel 2>/dev/null)" || repo_root="$PWD"
 
-  local agents_file="" cand
+  local global_agents="" project_agents="" cand
+  for cand in "${HOME}/.agents/AGENTS.md" "${HOME}/.config/agents/AGENTS.md"; do
+    if [[ -f "$cand" && -r "$cand" ]]; then
+      global_agents="$cand"
+      break
+    fi
+  done
+
   for cand in "${repo_root}/AGENTS.md" "${repo_root}/.agents/AGENTS.md" "${repo_root}/CLAUDE.md"; do
-    if [[ -f "$cand" ]]; then
-      agents_file="$cand"
+    if [[ -f "$cand" && -r "$cand" ]]; then
+      [[ "$cand:A" != "$global_agents:A" ]] && project_agents="$cand"
       break
     fi
   done
@@ -53,14 +81,7 @@ Current environment:
 - Date: ${current_date}
 EOF
 
-  if [[ -n "$agents_file" && -r "$agents_file" ]]; then
-    print -r -- ""
-    print -r -- "<project_context>"
-    print -r -- "<project_instructions path=\"${agents_file:t}\">"
-    cat "$agents_file"
-    print -r -- "</project_instructions>"
-    print -r -- "</project_context>"
-  fi
+  _zshai_context_instructions "$global_agents" "$project_agents" "$repo_root"
 }
 
 _zshai_context "$@"
