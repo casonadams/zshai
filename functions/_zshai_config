@@ -22,6 +22,8 @@ _zshai_config_get() {
     safe_mode) print -r -- "${ZSHAI_SAFE:-0}" ;;
     stream) print -r -- "${ZSHAI_STREAM:-1}" ;;
     timeout) print -r -- "${ZSHAI_TIMEOUT:-60}" ;;
+    websearch) print -r -- "${ZSHAI_WEBSEARCH:-1}" ;;
+    tools) print -r -- "${ZSHAI_ACTIVE_TOOLS:-$(_zshai_tools list 2>/dev/null || echo "bash read write edit websearch")}" ;;
     *)
       print -u2 "Error: unknown config key: $1"
       return 1
@@ -57,11 +59,12 @@ _zshai_config() {
       printf "%-12s %s\n" "stream:" "$(_zshai_config_get stream)"
       printf "%-12s %s\n" "thinking:" "$(_zshai_config_get thinking)"
       printf "%-12s %s\n" "timeout:" "$(_zshai_config_get timeout)"
+      printf "%-12s %s\n" "websearch:" "$(_zshai_config_get websearch)"
       ;;
     check)
       return 0
       ;;
-    base_url | api_key | model | max_steps | max_tokens | num_ctx | safe_mode | stream | thinking | timeout)
+    base_url | api_key | model | max_steps | max_tokens | num_ctx | safe_mode | stream | thinking | timeout | websearch | tools)
       _zshai_config_get "$cmd"
       ;;
     *)

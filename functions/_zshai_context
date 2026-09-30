@@ -1,5 +1,6 @@
 _zshai_context() {
-  local repo_root
+  autoload -Uz _zshai_tools 2>/dev/null
+  _zshai_tools list >/dev/null 2>&1 || true
   repo_root="$(git rev-parse --show-toplevel 2>/dev/null)" || repo_root="$PWD"
 
   local agents_file="" cand
@@ -16,21 +17,30 @@ _zshai_context() {
   current_date="$(date)"
   git_branch="$(git rev-parse --abbrev-ref HEAD 2>/dev/null)" || git_branch="none"
 
+  local -a tool_lines
+  local tname tfn tdesc
+  for tname in ${=$(_zshai_tools list 2>/dev/null || echo "bash read write edit websearch")}; do
+    tfn="_zshai_tool_${tname}"
+    if (($+functions[$tfn])); then
+      tdesc="$($tfn describe 2>/dev/null)"
+      [[ -n "$tdesc" ]] && tool_lines+=("$tdesc")
+    fi
+  done
+
+  local ws_guideline=""
+  [[ " ${tool_lines[*]} " == *"- websearch:"* ]] && ws_guideline=$'\n'"- Use websearch to search for external documentation, libraries, APIs, or current facts"
+  local tools_block="${(F)tool_lines}"
+
   cat <<EOF
 You are an expert coding assistant operating inside zshai, a lightweight AI agent harness in Zsh. You help users by reading files, executing commands, editing code, and writing new files.
 
 Available tools:
-- bash: Execute a shell command in a dedicated subshell and capture its output and exit code
-- read: Read file contents with line numbering (start_line and limit safeguards)
-- write: Create or overwrite files atomically (automatically creates parent directories)
-- edit: Make precise file edits with exact search-and-replace (old_text must match uniquely)
-
+${tools_block}
 Guidelines:
 - Commands run directly in the working directory; do not prefix commands with cd
 - Use read to examine files instead of cat or sed
 - Use edit for precise changes; old_text must match exactly and uniquely in the file
-- Use write only for new files or complete rewrites
-- Never invoke tools with placeholder or fictitious paths (such as /path/to/file.txt); if you need file paths, inspect the workspace or ask the user
+- Use write only for new files or complete rewrites${ws_guideline}
 - When the user asks conversational questions, greetings, or asks what you can do, respond directly with text describing your capabilities without calling any tools
 - When an action on the workspace is requested, execute the necessary tool directly one step at a time
 - Be concise and clear in your responses

@@ -1,5 +1,8 @@
 _zshai_tool_bash() {
   case "$1" in
+    describe)
+      print -r -- "- bash: Execute a shell command in a dedicated subshell and capture its output and exit code"
+      ;;
     definition)
       cat <<'EOF'
 {"type":"function","function":{"name":"bash","description":"Execute a shell command in a dedicated subshell and capture its output and exit code.","parameters":{"type":"object","properties":{"command":{"type":"string","description":"The shell command to execute."}},"required":["command"]}}}
@@ -22,6 +25,9 @@ EOF
 
 _zshai_tool_read() {
   case "$1" in
+    describe)
+      print -r -- "- read: Read file contents with line numbering (start_line and limit safeguards)"
+      ;;
     definition)
       cat <<'EOF'
 {"type":"function","function":{"name":"read","description":"Read file contents with line numbers and optional line range bounding.","parameters":{"type":"object","properties":{"path":{"type":"string","description":"Path to the file to read."},"start_line":{"type":"integer","description":"1-based starting line number (default 1)."},"limit":{"type":"integer","description":"Maximum number of lines to read (default 200)."}},"required":["path"]}}}
@@ -74,6 +80,9 @@ EOF
 
 _zshai_tool_write() {
   case "$1" in
+    describe)
+      print -r -- "- write: Create or overwrite files atomically (automatically creates parent directories)"
+      ;;
     definition)
       cat <<'EOF'
 {"type":"function","function":{"name":"write","description":"Create or overwrite a file with specified content.","parameters":{"type":"object","properties":{"path":{"type":"string","description":"Path to the file to write."},"content":{"type":"string","description":"Full file content to write."}},"required":["path","content"]}}}
@@ -121,6 +130,9 @@ EOF
 
 _zshai_tool_edit() {
   case "$1" in
+    describe)
+      print -r -- "- edit: Make precise file edits with exact search-and-replace (old_text must match uniquely)"
+      ;;
     definition)
       cat <<'EOF'
 {"type":"function","function":{"name":"edit","description":"Perform exact search-and-replace on an existing file.","parameters":{"type":"object","properties":{"path":{"type":"string","description":"Path to the file to edit."},"old_text":{"type":"string","description":"The exact existing text to replace (must match uniquely)."},"new_text":{"type":"string","description":"The replacement text."}},"required":["path","old_text","new_text"]}}}
@@ -189,14 +201,144 @@ EOF
   esac
 }
 
+_zshai_tool_websearch() {
+  case "$1" in
+    describe)
+      print -r -- "- websearch: Search the web via DuckDuckGo Lite for documentation, APIs, and current information"
+      ;;
+    definition)
+      cat <<'EOF'
+{"type":"function","function":{"name":"websearch","description":"Search the web using DuckDuckGo Lite. Returns titles, URLs, and snippets.","parameters":{"type":"object","properties":{"query":{"type":"string","description":"The search query string."},"limit":{"type":"integer","description":"Maximum number of results to return (default: 5, max: 10)."}},"required":["query"]}}}
+EOF
+      ;;
+    exec)
+      local query limit
+      query=$(print -r -- "$2" | jq -r '.query // empty')
+      limit=$(print -r -- "$2" | jq -r '.limit // 5')
+      _zshai_tool_websearch "$query" "$limit"
+      ;;
+    *)
+      local query="$1"
+      local limit="${2:-5}"
+
+      [[ -z "$query" ]] && {
+        print -r -- "Error: query cannot be empty"
+        return 0
+      }
+
+      ((limit < 1)) && limit=1
+      ((limit > 10)) && limit=10
+
+      local html
+      html="$(curl -s -G -A "Lynx/2.9.3 libwww-FM/2.14 SSL-MM/1.4.1 OpenSSL/4.0.0" \
+        --max-time 15 \
+        --data-urlencode "q=$query" \
+        "https://lite.duckduckgo.com/lite/" 2>/dev/null)"
+
+      if [[ -z "$html" ]]; then
+        print -r -- "Error: failed to retrieve search results (network or timeout error)"
+        return 0
+      fi
+
+      local parsed
+      parsed="$(print -r -- "$html" | awk -v limit="$limit" '
+function clean(s) {
+  gsub(/<[^>]*>/, "", s)
+  gsub(/&amp;/, "\\&", s)
+  gsub(/&#x27;/, "\047", s)
+  gsub(/&quot;/, "\"", s)
+  gsub(/&lt;/, "<", s)
+  gsub(/&gt;/, ">", s)
+  gsub(/&nbsp;/, " ", s)
+  gsub(/\t/, " ", s)
+  gsub(/^[ \t\r\n]+|[ \t\r\n]+$/, "", s)
+  return s
+}
+function extract_url(href) {
+  if (match(href, /uddg=[^&"\047 ]+/)) {
+    return substr(href, RSTART + 5, RLENGTH - 5)
+  }
+  return ""
+}
+BEGIN { count = 0; in_snippet = 0; snippet = "" }
+/class=[\047"]result-link[\047"]/ {
+  if (count >= limit) exit
+  href = ""
+  if (match($0, /href=[\047"][^\047"]+[\047"]/)) {
+    href = substr($0, RSTART + 6, RLENGTH - 7)
+  }
+  title = clean($0)
+  url = extract_url(href)
+  if (url != "" && title != "") {
+    count++
+    titles[count] = title
+    urls[count] = url
+  }
+}
+/class=[\047"]result-snippet[\047"]/ {
+  if (count > 0 && count <= limit) {
+    in_snippet = count
+    snippet = clean($0)
+    if ($0 ~ /<\/td>/) {
+      snippets[in_snippet] = snippet
+      in_snippet = 0
+    }
+  }
+}
+!/class=[\047"]result-snippet[\047"]/ && in_snippet > 0 {
+  snippet = snippet " " clean($0)
+  if ($0 ~ /<\/td>/) {
+    snippets[in_snippet] = clean(snippet)
+    in_snippet = 0
+  }
+}
+END {
+  for (i = 1; i <= count; i++) {
+    printf "%s\t%s\t%s\n", titles[i], urls[i], snippets[i]
+  }
+}
+')"
+
+      if [[ -z "$parsed" ]]; then
+        print -r -- "No search results found for: $query"
+        return 0
+      fi
+
+      local out=""
+      local idx=1
+      local title enc_url snippet rep url
+      while IFS=$'\t' read -r title enc_url snippet; do
+        [[ -z "$title" ]] && continue
+        rep="${enc_url//\%/\\x}"
+        url="$(printf '%b' "$rep")"
+        out+="${idx}. [${title}](${url})"$'\n'
+        [[ -n "$snippet" ]] && out+="   ${snippet}"$'\n'
+        ((idx++))
+      done <<<"$parsed"
+
+      local res="${out%$'\n'}"
+      _zshai_truncate "$res"
+      ;;
+  esac
+}
+
 _zshai_tools_list() {
-  print -r -- "${ZSHAI_ACTIVE_TOOLS:-bash read write edit}"
+  if [[ -n "$ZSHAI_ACTIVE_TOOLS" ]]; then
+    print -r -- "$ZSHAI_ACTIVE_TOOLS"
+    return 0
+  fi
+  local ws="${ZSHAI_WEBSEARCH:-1}"
+  if [[ "$ws" == "0" ]]; then
+    print -r -- "bash read write edit"
+  else
+    print -r -- "bash read write edit websearch"
+  fi
 }
 
 _zshai_tools_definitions() {
   local -a defs
   local name fn
-  for name in ${=ZSHAI_ACTIVE_TOOLS:-bash read write edit}; do
+  for name in ${=$(_zshai_tools_list)}; do
     fn="_zshai_tool_${name}"
     (($+functions[$fn])) && defs+=("$($fn definition)")
   done
@@ -234,6 +376,7 @@ _zshai_tools_exec() {
 }
 
 _zshai_tools() {
+  (($# == 0)) && return 0
   local cmd="$1"
   shift
   case "$cmd" in

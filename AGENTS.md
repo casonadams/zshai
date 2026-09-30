@@ -4,11 +4,22 @@
 
 - **Zero-compilation, zero-overhead**: Pure Zsh 5.8+ with standard CLI
   dependencies (`curl`, `jq`).
-- **Minimal, small, fast, correct**: Every function should do one thing well.
-  Avoid gratuitous wrappers or multi-tier indirections.
+- **Minimal, small, fast, clean, and DRY**:
+  - Every function should do one thing well. Avoid gratuitous wrappers,
+    multi-tier indirections, or speculative abstractions.
+  - Never duplicate logic, schemas, argument unpacking, or payload construction
+    across adapters, tools, or subcommands. Factor shared patterns into
+    canonical base functions.
+  - Treat a source file exceeding ~150 lines or a function exceeding ~25 lines
+    as a review signal to check cohesion, eliminate boilerplate, and prune bloat.
+  - Zero dead code: remove obsolete functions, abandoned branches, and unused
+    variables immediately.
 - **In-process over subprocess**: Favor native Zsh parameter expansions, string
   slicing, and built-ins over spawning subshells (`awk`, `sed`, `date`, `cat`)
   in tight loops.
+- **Opportunistic Markdown Rendering**: When stdout is a terminal, zshai delegates
+  non-streamed output to `glow` or `mdcat` if present on `$PATH`. Zero extra
+  dependencies: defaults cleanly to raw markdown if neither tool is installed.
 
 ---
 
@@ -114,3 +125,20 @@ bin/lint
   - Cognitive Complexity ($ccx$): $\le 30$
   - Cyclomatic Complexity ($cx$): $\le 25$
   - CRAP score ($cx^2 \cdot (1 - \text{cov})^3 + cx$): $\le 30$
+
+### Code Minimalism, Cleanliness & DRY Verification (Ripwire)
+
+Always verify that changes keep the codebase small, clean, minimal, and DRY:
+
+1. **Duplicate Logic & Clones Audit**:
+   - Run `ripwire . --clones` to detect token-normalized duplicate bodies
+     (Type-2 and Type-3 clones). Refuse copy-pasted implementations or
+     duplicated payload shapes.
+
+2. **Dead Code & Orphan Elimination**:
+   - Run `ripwire . --dead-code` to verify no unreferenced internal
+     functions, unused aliases, or orphaned helpers remain in the codebase.
+3. **Quality & Bloat Regression Gate**:
+   - Run `ripwire . --quality-delta` before committing or submitting a PR to
+     ensure the change introduces zero regressions across complexity, clones,
+     dead code, or API surface bloat.

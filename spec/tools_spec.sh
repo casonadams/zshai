@@ -78,15 +78,50 @@ Describe "_zshai_tools"
     End
   End
 
+  Context "websearch tool"
+    It "returns error if query is empty"
+      When call _zshai_tool_websearch ""
+      The output should eq "Error: query cannot be empty"
+    End
+
+    It "emits valid tool definition schema"
+      ws_def() {
+        _zshai_tool_websearch definition | jq -r '.function.name'
+      }
+      When call ws_def
+      The output should eq "websearch"
+    End
+
+    It "provides describe line"
+      When call _zshai_tool_websearch describe
+      The output should include "- websearch:"
+    End
+  End
+
   Context "dispatcher"
     It "emits valid tool definitions JSON array"
       defs_valid() {
-        _zshai_tools definitions | jq -e 'type == "array" and length >= 4' >/dev/null && echo "valid"
+        _zshai_tools definitions | jq -e 'type == "array" and length >= 5' >/dev/null && echo "valid"
       }
       When call defs_valid
       The output should eq "valid"
     End
 
+    It "excludes websearch when ZSHAI_WEBSEARCH=0"
+      check_disabled() {
+        ZSHAI_WEBSEARCH=0 _zshai_tools list
+      }
+      When call check_disabled
+      The output should eq "bash read write edit"
+    End
+
+    It "respects explicit ZSHAI_ACTIVE_TOOLS override"
+      check_override() {
+        ZSHAI_ACTIVE_TOOLS="read websearch" _zshai_tools list
+      }
+      When call check_override
+      The output should eq "read websearch"
+    End
     It "dispatches tool execution via exec"
       When call _zshai_tools exec bash '{"command": "echo dispatch_ok"}'
       The output should eq "dispatch_ok"

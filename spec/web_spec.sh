@@ -77,7 +77,7 @@ Describe "web documentation and GitHub Pages assets"
 
       # Every tool in README.md must be present in www/index.html
       local tool
-      for tool in bash read write edit; do
+      for tool in bash read write edit websearch; do
         if ! grep -q "class=\"tool-badge\">$tool<" "$web"; then
           echo "missing-tool: $tool"
           return 1

@@ -6,11 +6,17 @@ prompt line buffer integration) and an autonomous standalone CLI executable.
 
 ## Prerequisites
 
-- Zsh 5.8+
-- `curl`
-- `jq`
+### Required
+- **Zsh 5.8+**
+- **`curl`**: For HTTP/SSE streaming and provider communication
+- **`jq`**: For high-performance JSON stream processing and argument parsing
 
-## Installation
+### Optional Enhancements
+- **`glow`** or **`mdcat`**: When present on `$PATH`, `zshai` automatically formats non-streamed terminal output with rich Markdown rendering (set `ZSHAI_RENDER=0` to force raw text).
+- **`shellspec`**: For executing the BDD test suite (`spec/*_spec.sh`).
+- **`ripwire`**: For McCabe cyclomatic, cognitive complexity, and CRAP score quality gates (`bin/lint`).
+- **`shfmt`**: For Zsh code formatting conformance.
+
 
 ### Standalone CLI
 
@@ -62,8 +68,10 @@ Settings resolve from environment variables with standard fallbacks:
 | `ZSHAI_NUM_CTX`      | -                   | `auto`                      | Context window size (auto-discovered from Ollama)             |
 | `ZSHAI_THINKING`     | -                   | `off`                       | Reasoning budget (`off`, `low`, `medium`, `high`, or token N) |
 | `ZSHAI_STREAM`       | -                   | `1`                         | Stream tokens live when in interactive terminal               |
-| `ZSHAI_SAFE`         | -                   | `0`                         | If 1, prompts before mutating tools                           |
+| `ZSHAI_RENDER`       | -                   | `1`                         | Enable terminal markdown rendering via glow/mdcat             |
 | `ZSHAI_TIMEOUT`      | -                   | `60`                        | HTTP request timeout in seconds                               |
+| `ZSHAI_WEBSEARCH`    | -                   | `1`                         | Enable web search tool (set 0 or use --no-websearch)          |
+| `ZSHAI_ACTIVE_TOOLS` | -                   | `bash read write edit websearch` | Space-delimited active tools list                             |
 | `ZSHAI_BIND_DEFAULT` | -                   | `0`                         | If 1, forces binding `^G` to widget                           |
 
 Query configuration via CLI:
@@ -136,8 +144,7 @@ bindkey '^X^A' zshai-widget
 
 ## Tools
 
-The harness provides 4 built-in coding tools executed in dedicated subshells:
-
+The harness provides 5 built-in coding tools executed in dedicated subshells:
 1. `bash(command)`: Executes shell command, captures combined stdout/stderr and
    exit code.
 2. `read(path, start_line, limit)`: Reads file content with 1-based line
@@ -146,7 +153,8 @@ The harness provides 4 built-in coding tools executed in dedicated subshells:
    parent directories.
 4. `edit(path, old_text, new_text)`: Performs exact, unique string
    search-and-replace on existing files.
-
+5. `websearch(query, limit)`: Searches the web via DuckDuckGo Lite and returns
+   titles, URLs, and snippets.
 ### Safety Guards
 
 - **Output Truncation**: Tool output exceeding 200 lines is bounded: the first

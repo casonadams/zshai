@@ -184,6 +184,8 @@ Options:
   -b, --base-url <url>     Provider API base URL override
   -s, --step-limit <n>     Maximum agent execution steps (default: 0 = unlimited)
   --safe                   Prompt before executing mutating tools
+  --no-websearch           Disable DuckDuckGo web search tool
+  --websearch              Force enable web search tool (default: enabled)
   -v, --verbose            Enable verbose output
   -h, --help               Show this help message
 EOF
@@ -212,6 +214,12 @@ EOF
         ;;
       --safe)
         export ZSHAI_SAFE=1
+        ;;
+      --no-websearch)
+        export ZSHAI_WEBSEARCH=0
+        ;;
+      --websearch)
+        export ZSHAI_WEBSEARCH=1
         ;;
       -v | --verbose)
         engine_opts+=(-v)

@@ -140,6 +140,19 @@ _zshai_engine_exec_calls() {
       '. + [{"role": "tool", "tool_call_id": $id, "name": $name, "content": $content}]')
   done
 }
+_zshai_render_markdown() {
+  local content="$1"
+  if [[ -t 1 && "${ZSHAI_RENDER:-1}" != "0" ]]; then
+    if (($+commands[glow])); then
+      print -r -- "$content" | glow -s dark -
+      return $?
+    elif (($+commands[mdcat])); then
+      print -r -- "$content" | mdcat -
+      return $?
+    fi
+  fi
+  print -r -- "$content"
+}
 
 _zshai_engine() {
   autoload -Uz _zshai_config _zshai_config_get _zshai_context _zshai_tools _zshai_provider 2>/dev/null
@@ -235,7 +248,7 @@ _zshai_engine() {
       if [[ "$was_streamed" == "true" ]]; then
         print -u2 ""
       else
-        print -r -- "$final_content"
+        _zshai_render_markdown "$final_content"
       fi
       return 0
     fi

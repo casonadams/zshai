@@ -278,6 +278,12 @@ export PATH="$HOME/.local/share/zshai/bin:$PATH"</code></pre>
                 <td><span class="tag-badge tag-mutate">Exact Match</span></td>
                 <td>Performs surgical search-and-replace on existing files. Strictly verifies that <code>old_text</code> appears exactly once to prevent corruption.</td>
               </tr>
+              <tr>
+                <td><span class="tool-badge">websearch</span></td>
+                <td><code>query: string, limit?: int</code></td>
+                <td><span class="tag-badge tag-safe">Read-Only</span></td>
+                <td>Searches the web via DuckDuckGo Lite. Extracts page titles, direct URLs, and snippets without requiring external API keys.</td>
+              </tr>
             </tbody>
           </table>
         </div>
@@ -392,6 +398,21 @@ export PATH="$HOME/.local/share/zshai/bin:$PATH"</code></pre>
                   <td><code>ZSHAI_TIMEOUT</code></td>
                   <td><code>60</code></td>
                   <td>HTTP request timeout in seconds</td>
+                </tr>
+                <tr>
+                  <td><code>ZSHAI_WEBSEARCH</code></td>
+                  <td><code>1</code></td>
+                  <td>Enable web search tool (set 0 or use --no-websearch)</td>
+                </tr>
+                <tr>
+                  <td><code>ZSHAI_ACTIVE_TOOLS</code></td>
+                  <td><code>bash read write edit websearch</code></td>
+                  <td>Space-delimited active tools list</td>
+                </tr>
+                <tr>
+                  <td><code>ZSHAI_RENDER</code></td>
+                  <td><code>1</code></td>
+                  <td>Render markdown via glow or mdcat if installed</td>
                 </tr>
                 <tr>
                   <td><code>ZSHAI_BIND_DEFAULT</code></td>
