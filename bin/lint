@@ -1,8 +1,5 @@
 #!/usr/bin/env zsh
-0="${${ZERO:-${0:#$ZSH_ARGZERO}}:-${(%):-%N}}"
-0="${${(M)0:#/*}:-$PWD/$0}"
-root="${0:A:h:h}"
-cd "$root" || exit 1
+cd "${0:A:h:h}" || exit 1
 
 local json_mode=0
 if [[ "$1" == "--json" || "$1" == "-j" ]]; then
