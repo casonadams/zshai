@@ -1,0 +1,301 @@
+_zshai_mcp_config_files() {
+  local -aU files=()
+
+  if [[ -f "${HOME}/.agents/mcp.json" ]]; then
+    files+=("${HOME}/.agents/mcp.json")
+  elif [[ -f "${HOME}/.config/zshai/mcp.json" ]]; then
+    files+=("${HOME}/.config/zshai/mcp.json")
+  fi
+
+  if [[ -f "${PWD}/.agents/mcp.json" ]]; then
+    files+=("${PWD}/.agents/mcp.json")
+  elif [[ -f "${PWD}/.mcp.json" ]]; then
+    files+=("${PWD}/.mcp.json")
+  fi
+
+  if [[ -n "$ZSHAI_MCP_CONFIG" && -f "$ZSHAI_MCP_CONFIG" ]]; then
+    files+=("$ZSHAI_MCP_CONFIG")
+  fi
+
+  (($#files > 0)) && printf "%s\n" "${files[@]}"
+}
+
+_zshai_mcp_expand_server() {
+  local name="$1" raw_merged="$2"
+  local raw_cmd exp_cmd args_json="[]" env_json="{}" orig_s
+  local -a raw_args exp_args raw_env
+  local a e k v
+
+  raw_cmd="$(print -r -- "$raw_merged" | jq -r --arg n "$name" '.[$n].command // empty')"
+  exp_cmd="${(e)raw_cmd}"
+
+  raw_args=(${(f)"$(print -r -- "$raw_merged" | jq -r --arg n "$name" '.[$n].args[]? // empty')"})
+  if (($#raw_args > 0)); then
+    exp_args=()
+    for a in "${raw_args[@]}"; do exp_args+=("${(e)a}"); done
+    args_json="$(printf '%s\n' "${exp_args[@]}" | jq -R . | jq -s .)"
+  fi
+
+  raw_env=(${(f)"$(print -r -- "$raw_merged" | jq -r --arg n "$name" '.[$n].env // {} | to_entries[]? | "\(.key)=\(.value)"')"})
+  if (($#raw_env > 0)); then
+    for e in "${raw_env[@]}"; do
+      k="${e%%=*}"
+      v="${(e)${e#*=}}"
+      env_json="$(print -r -- "$env_json" | jq --arg k "$k" --arg v "$v" '.[$k] = $v')"
+    done
+  fi
+
+  orig_s="$(print -r -- "$raw_merged" | jq -c --arg n "$name" '.[$n]')"
+  jq -n --arg cmd "$exp_cmd" --argjson args "$args_json" --argjson env "$env_json" --argjson orig "$orig_s" \
+    '$orig + {command: $cmd, args: $args, env: $env}'
+}
+
+_zshai_mcp_servers() {
+  local -a config_files
+  config_files=(${(f)"$(_zshai_mcp_config_files)"})
+  (($#config_files == 0)) && {
+    print -r -- "{}"
+    return 0
+  }
+
+  local raw_merged
+  raw_merged="$(jq -s 'reduce .[] as $file ({}; . * ($file.mcpServers // {}))' "${config_files[@]}" 2>/dev/null)"
+  [[ -z "$raw_merged" || "$raw_merged" == "null" ]] && {
+    print -r -- "{}"
+    return 0
+  }
+
+  local -a server_names
+  server_names=(${(f)"$(print -r -- "$raw_merged" | jq -r 'keys[]?' 2>/dev/null)"})
+  (($#server_names == 0)) && {
+    print -r -- "{}"
+    return 0
+  }
+
+  local out="{}" name s_json
+  for name in "${server_names[@]}"; do
+    s_json="$(_zshai_mcp_expand_server "$name" "$raw_merged")"
+    out="$(print -r -- "$out" | jq --arg n "$name" --argjson s "$s_json" '.[$n] = $s')"
+  done
+  print -r -- "$out"
+}
+
+_zshai_mcp_call_server() {
+  local server="$1" method="$2" params_json="$3"
+  [[ -z "$params_json" ]] && params_json="{}"
+  local servers_json server_def cmd raw_resp err_msg
+  local -a cmd_args env_pairs
+  local timeout_secs=5
+
+  [[ "$method" != "tools/list" ]] && timeout_secs="${ZSHAI_MCP_TIMEOUT:-30}"
+
+  servers_json="$(_zshai_mcp_servers)"
+  server_def="$(print -r -- "$servers_json" | jq -c --arg s "$server" '.[$s] // empty')"
+  if [[ -z "$server_def" ]]; then
+    print -r -- "Error: unknown MCP server: $server"
+    return 1
+  fi
+
+  cmd="$(print -r -- "$server_def" | jq -r '.command // empty')"
+  if [[ -z "$cmd" ]]; then
+    print -r -- "Error: no command configured for MCP server: $server"
+    return 1
+  fi
+
+  cmd_args=(${(f)"$(print -r -- "$server_def" | jq -r '.args[]? // empty')"})
+  env_pairs=(${(f)"$(print -r -- "$server_def" | jq -r '.env // {} | to_entries[]? | "\(.key)=\(.value)"')"})
+
+  local init_req='{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"zshai","version":"0.1.0"}}}'
+  local notify_req='{"jsonrpc":"2.0","method":"notifications/initialized"}'
+  local call_req
+  call_req="$(jq -n -c --arg m "$method" --argjson p "$params_json" '{"jsonrpc":"2.0","id":2,"method":$m,"params":$p}')"
+
+  local -a runner=()
+  if (($+commands[timeout])); then
+    runner=(timeout "$timeout_secs")
+  elif (($+commands[gtimeout])); then
+    runner=(gtimeout "$timeout_secs")
+  fi
+
+  raw_resp=$(
+    printf "%s\n%s\n%s\n" "$init_req" "$notify_req" "$call_req" | {
+      if (($#runner > 0)); then
+        "${runner[@]}" zsh -f -c '
+          cmd="$1"; shift; n="$1"; shift
+          for ((i=0; i<n; i++)); do export "$1"; shift; done
+          exec "$cmd" "$@"
+        ' -- "$cmd" "${#env_pairs}" "${env_pairs[@]}" "${cmd_args[@]}" 2>/dev/null
+      else
+        (
+          for p in "${env_pairs[@]}"; do export "$p"; done
+          exec "$cmd" "${cmd_args[@]}"
+        ) 2>/dev/null
+      fi
+    } | jq -R 'fromjson? | select(.id == 2)' 2>/dev/null
+  )
+
+  if [[ -z "$raw_resp" ]]; then
+    print -r -- "Error: server $server failed to respond"
+    return 1
+  fi
+
+  err_msg="$(print -r -- "$raw_resp" | jq -r '.error.message // empty')"
+  if [[ -n "$err_msg" ]]; then
+    print -r -- "Error: $err_msg"
+    return 1
+  fi
+
+  print -r -- "$raw_resp" | jq -c '.result'
+}
+
+_zshai_mcp_definitions() {
+  local -a config_files
+  config_files=(${(f)"$(_zshai_mcp_config_files)"})
+  (($#config_files == 0)) && {
+    print -r -- "[]"
+    return 0
+  }
+
+  local cache_key cache_file
+  cache_key="$(cat "${config_files[@]}" 2>/dev/null | cksum | awk '{print $1}')"
+  cache_file="${TMPDIR:-/tmp}/zshai/mcp_cache_${cache_key}.json"
+
+  if [[ -z "$ZSHAI_MCP_NOCACHE" && -s "$cache_file" ]]; then
+    cat "$cache_file"
+    return 0
+  fi
+
+  local servers_json
+  servers_json="$(_zshai_mcp_servers)"
+  local -a server_names def_arrays=()
+  server_names=(${(f)"$(print -r -- "$servers_json" | jq -r 'keys[]?' 2>/dev/null)"})
+
+  local name srv_tools mapped
+  for name in "${server_names[@]}"; do
+    srv_tools="$(_zshai_mcp_call_server "$name" "tools/list" "{}" 2>/dev/null)"
+    if [[ $? -eq 0 && -n "$srv_tools" ]]; then
+      mapped="$(print -r -- "$srv_tools" | jq -c --arg s "$name" '
+        (.tools // []) | map({
+          type: "function",
+          function: {
+            name: ("mcp__" + $s + "__" + .name),
+            description: (.description // ""),
+            parameters: (.inputSchema // {type: "object"})
+          }
+        })
+      ' 2>/dev/null)"
+      [[ -n "$mapped" && "$mapped" != "[]" ]] && def_arrays+=("$mapped")
+    fi
+  done
+
+  local all_defs="[]"
+  if (($#def_arrays > 0)); then
+    all_defs="$(printf "%s\n" "${def_arrays[@]}" | jq -s 'add // []' 2>/dev/null)"
+  fi
+
+  if [[ "$all_defs" != "[]" || $#server_names -eq 0 ]]; then
+    mkdir -p "${cache_file:h}" 2>/dev/null
+    touch "$cache_file" 2>/dev/null && chmod 0600 "$cache_file" 2>/dev/null
+    print -r -- "$all_defs" >"$cache_file" 2>/dev/null
+  fi
+  print -r -- "$all_defs"
+}
+
+_zshai_mcp_exec() {
+  local tool_name="$1" args_json="$2"
+  [[ -z "$args_json" ]] && args_json="{}"
+  local server="${tool_name#mcp__}"
+  server="${server%%__*}"
+  local tool="${tool_name#mcp__*__}"
+
+  local call_params
+  call_params="$(jq -n -c --arg t "$tool" --argjson a "$args_json" '{"name": $t, "arguments": $a}' 2>/dev/null)"
+  if [[ -z "$call_params" ]]; then
+    print -r -- "Error: invalid tool call arguments"
+    return 1
+  fi
+
+  local res
+  res="$(_zshai_mcp_call_server "$server" "tools/call" "$call_params")"
+  local exit_code=$?
+  if ((exit_code != 0)); then
+    print -r -- "$res"
+    return $exit_code
+  fi
+
+  local out
+  out="$(print -r -- "$res" | jq -r '
+    (
+      if .content and (.content | type == "array") then
+        [ .content[] | if type == "object" and .text then .text elif type == "string" then . else tostring end ] | join("\n")
+      elif .text then
+        .text
+      else
+        tojson
+      end
+    ) as $txt |
+    if .isError == true then
+      "[MCP Error] " + $txt
+    else
+      $txt
+    end
+  ' 2>/dev/null)"
+
+  local trimmed="${out%$'\n'}"
+  _zshai_truncate "$trimmed"
+}
+
+_zshai_mcp_list() {
+  local servers_json
+  servers_json="$(_zshai_mcp_servers)"
+  local -a server_names
+  server_names=(${(f)"$(print -r -- "$servers_json" | jq -r 'keys[]?' 2>/dev/null)"})
+
+  if (($#server_names == 0)); then
+    print "No MCP servers configured."
+    return 0
+  fi
+
+  printf "%-16s %-8s %-6s %s\n" "SERVER" "STATUS" "TOOLS" "COMMAND"
+  print -- "----------------------------------------------------------------"
+
+  local name s_def cmd_line srv_tools srv_status tool_count
+  for name in "${server_names[@]}"; do
+    s_def="$(print -r -- "$servers_json" | jq -c --arg n "$name" '.[$n]')"
+    cmd_line="$(print -r -- "$s_def" | jq -r '
+      [(.command // ""), ((.args // []) | join(" "))] | select(.[0] != "") | join(" ")
+    ')"
+    srv_tools="$(_zshai_mcp_call_server "$name" "tools/list" "{}" 2>/dev/null)"
+    if [[ $? -eq 0 && -n "$srv_tools" ]]; then
+      srv_status="ok"
+      tool_count="$(print -r -- "$srv_tools" | jq '(.tools // []) | length' 2>/dev/null || echo 0)"
+    else
+      srv_status="failed"
+      tool_count="0"
+    fi
+    printf "%-16s %-8s %-6s %s\n" "$name" "$srv_status" "$tool_count" "$cmd_line"
+  done
+}
+
+_zshai_mcp() {
+  (($# == 0)) && {
+    print -u2 "Usage: _zshai_mcp <config_files|servers|definitions|exec|call_server|list> [args...]"
+    return 1
+  }
+  local cmd="$1"
+  shift
+  case "$cmd" in
+    config_files) _zshai_mcp_config_files "$@" ;;
+    servers) _zshai_mcp_servers "$@" ;;
+    definitions) _zshai_mcp_definitions "$@" ;;
+    exec) _zshai_mcp_exec "$@" ;;
+    call_server) _zshai_mcp_call_server "$@" ;;
+    list) _zshai_mcp_list "$@" ;;
+    *)
+      print -u2 "Error: unknown mcp command: $cmd"
+      return 1
+      ;;
+  esac
+}
+
+_zshai_mcp "$@"

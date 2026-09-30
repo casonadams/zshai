@@ -160,6 +160,12 @@ zshai() {
         "${ZSHAI_HOME:-${0:A:h:h}}/scripts/lint" "$@"
         return $?
         ;;
+      mcp)
+        shift
+        autoload -Uz _zshai_mcp 2>/dev/null
+        _zshai_mcp "$@"
+        return $?
+        ;;
       repl)
         shift
         force_repl=1
@@ -177,6 +183,7 @@ Usage:
   zshai [options]                  Launch interactive REPL (if TTY)
   cat file | zshai "<prompt>"      Process prompt with piped input
   zshai config [list|get <key>]    View configuration
+  zshai mcp [list]                 Inspect Model Context Protocol servers
   zshai version                    Display version
 
 Options:
@@ -185,6 +192,7 @@ Options:
   -b, --base-url <url>     Provider API base URL override
   -s, --step-limit <n>     Maximum agent execution steps (default: 0 = unlimited)
   --safe                   Prompt before executing mutating tools
+  --no-mcp                 Disable Model Context Protocol server tools
   -v, --verbose            Enable verbose output
   -h, --help               Show this help message
 EOF
@@ -213,6 +221,9 @@ EOF
         ;;
       --safe)
         export ZSHAI_SAFE=1
+        ;;
+      --no-mcp)
+        export ZSHAI_MCP=0
         ;;
       -v | --verbose)
         engine_opts+=(-v)

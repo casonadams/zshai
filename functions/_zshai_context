@@ -54,6 +54,18 @@ _zshai_context() {
       [[ -n "$tdesc" ]] && tool_lines+=("$tdesc")
     fi
   done
+  local mcp_guideline=""
+  if [[ "${ZSHAI_MCP:-1}" != "0" ]]; then
+    autoload -Uz _zshai_mcp 2>/dev/null
+    local mcp_defs_json
+    mcp_defs_json="$(_zshai_mcp definitions 2>/dev/null)"
+    if [[ -n "$mcp_defs_json" && "$mcp_defs_json" != "[]" ]]; then
+      local -a mcp_descs
+      mcp_descs=(${(f)"$(print -r -- "$mcp_defs_json" | jq -r '.[] | "- \(.function.name): \(.function.description // "MCP tool")"' 2>/dev/null)"})
+      tool_lines+=("${mcp_descs[@]}")
+      mcp_guideline=$'\n'"- Use mcp__* tools for specialized external services, browser automation, or platform APIs"
+    fi
+  fi
 
   local ws_guideline=""
   [[ " ${tool_lines[*]} " == *"- websearch:"* ]] && ws_guideline=$'\n'"- Use websearch to search for external documentation, libraries, APIs, or current facts"
@@ -68,7 +80,7 @@ Guidelines:
 - Commands run directly in the working directory; do not prefix commands with cd
 - Use read to examine files instead of cat or sed
 - Use edit for precise changes; old_text must match exactly and uniquely in the file
-- Use write only for new files or complete rewrites${ws_guideline}
+- Use write only for new files or complete rewrites${ws_guideline}${mcp_guideline}
 - When the user asks conversational questions, greetings, or asks what you can do, respond directly with text describing your capabilities without calling any tools
 - When an action on the workspace is requested, execute the necessary tool directly one step at a time
 - Be concise and clear in your responses

@@ -5,6 +5,7 @@ _zshai() {
   commands=(
     'config:View or query zshai configuration'
     'lint:Run syntax, format, and complexity/CRAP checks'
+    'mcp:Inspect and manage Model Context Protocol servers'
     'repl:Launch interactive multi-turn REPL'
     'version:Display version information'
     'help:Show help information'
@@ -19,6 +20,7 @@ _zshai() {
     '--max-tokens[Maximum generation tokens]:tokens:' \
     '--thinking[Reasoning budget]:thinking level:(off low medium high)' \
     '--safe[Prompt for confirmation before mutating tool calls]' \
+    '--no-mcp[Disable Model Context Protocol server tools]' \
     '--verbose[Enable verbose output]' \
     '(-p --prompt)'{-p,--prompt}'[Prompt to execute]:prompt:' \
     '1: :->command' \
@@ -32,6 +34,9 @@ _zshai() {
       case $words[1] in
         config)
           _values 'config command' 'list' 'get' 'base_url' 'api_key' 'model' 'max_steps' 'max_tokens' 'num_ctx' 'thinking' 'safe_mode' 'stream' 'timeout'
+          ;;
+        mcp)
+          _values 'mcp command' 'list'
           ;;
       esac
       ;;

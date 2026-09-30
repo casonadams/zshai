@@ -363,13 +363,29 @@ _zshai_tools_definitions() {
     fn="_zshai_tool_${name}"
     (($+functions[$fn])) && defs+=("$($fn definition)")
   done
-  printf "%s\n" "${defs[@]}" | jq -s -c .
+  local builtin_defs
+  builtin_defs="$(printf "%s\n" "${defs[@]}" | jq -s -c .)"
+  if [[ "${ZSHAI_MCP:-1}" != "0" ]]; then
+    autoload -Uz _zshai_mcp 2>/dev/null
+    local mcp_defs
+    mcp_defs="$(_zshai_mcp definitions 2>/dev/null)"
+    if [[ -n "$mcp_defs" && "$mcp_defs" != "[]" ]]; then
+      printf "%s\n%s\n" "$builtin_defs" "$mcp_defs" | jq -s -c 'add // []'
+      return 0
+    fi
+  fi
+  print -r -- "$builtin_defs"
 }
 
 _zshai_tools_exec() {
+  if [[ "$1" == mcp__* ]]; then
+    autoload -Uz _zshai_mcp 2>/dev/null
+    _zshai_mcp exec "$1" "$2"
+    return $?
+  fi
+
   local tool_name="${(L)1}"
   local args_json="$2"
-
   local safe_mode="$(_zshai_config_get safe_mode 2>/dev/null || echo 0)"
   if [[ "$safe_mode" == "1" ]]; then
     case "$tool_name" in

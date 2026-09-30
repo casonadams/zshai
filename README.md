@@ -76,12 +76,16 @@ Settings resolve from environment variables with standard fallbacks:
 | `ZSHAI_HOOKS_DIR`    | -                   | -                                | Custom directory for tool lifecycle hooks                     |
 | `ZSHAI_BASH_MAX_LINES` | -                 | `50`                             | Max bash output lines before tail truncation                  |
 | `ZSHAI_RTK`          | -                   | `auto`                           | Optimize shell commands via Rust Token Killer                 |
+| `ZSHAI_MCP`          | -                   | `1`                              | Enable Model Context Protocol server tools (set 0 or --no-mcp)|
+| `ZSHAI_MCP_CONFIG`   | -                   | -                                | Custom path to MCP JSON configuration file                    |
+| `ZSHAI_MCP_TIMEOUT`  | -                   | `30`                             | Timeout in seconds for MCP tool execution                     |
 
 Query configuration via CLI:
 
 ```zsh
 zshai config list
 zshai config get model
+zshai mcp list
 ```
 
 ## Usage
@@ -159,6 +163,18 @@ The harness provides 5 built-in coding tools executed in dedicated subshells:
    search-and-replace on existing files.
 5. `websearch(query, limit)`: Searches the web via DuckDuckGo Lite and returns
    titles, URLs, and snippets.
+
+### Model Context Protocol (MCP) Tools
+
+`zshai` automatically discovers and exposes tools from configured MCP servers:
+
+- **Configuration discovery**: Discovered in precedence order:
+  1. `${ZSHAI_MCP_CONFIG}` (explicit path override)
+  2. Workspace: `${PWD}/.agents/mcp.json` or `${PWD}/.mcp.json`
+  3. User: `${HOME}/.agents/mcp.json` or `${HOME}/.config/zshai/mcp.json`
+- **Namespacing**: Discovered tools are namespaced as `mcp__<server>__<tool>` to prevent collisions.
+- **Fast-path Caching**: Tool schemas are cached by configuration checksum in `${TMPDIR:-/tmp}/zshai/` for zero startup overhead.
+- **Inspection**: Run `zshai mcp list` to inspect registered servers, reachability status, and tool counts. Disable at runtime with `--no-mcp` or `ZSHAI_MCP=0`.
 
 ### Safety Guards & Context Management
 
