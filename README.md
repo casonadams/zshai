@@ -7,16 +7,27 @@ prompt line buffer integration) and an autonomous standalone CLI executable.
 ## Prerequisites
 
 ### Required
-- **Zsh 5.8+**
-- **`curl`**: For HTTP/SSE streaming and provider communication
-- **`jq`**: For high-performance JSON stream processing and argument parsing
+
+- [**Zsh 5.8+**](https://www.zsh.org/)
+- [**`curl`**](https://curl.se/): For HTTP/SSE streaming and provider
+  communication
+- [**`jq`**](https://jqlang.github.io/jq/): For high-performance JSON stream
+  processing and argument parsing
 
 ### Optional Enhancements
-- **`glow`** or **`mdcat`**: When present on `$PATH`, `zshai` automatically formats non-streamed terminal output with rich Markdown rendering (set `ZSHAI_RENDER=0` to force raw text).
-- **`shellspec`**: For executing the BDD test suite (`spec/*_spec.sh`).
-- **`ripwire`**: For McCabe cyclomatic, cognitive complexity, and CRAP score quality gates (`bin/lint`).
-- **`shfmt`**: For Zsh code formatting conformance.
 
+- [**`glow`**](https://github.com/charmbracelet/glow) or
+  [**`mdcat`**](https://github.com/swsnr/mdcat): When present on `$PATH`,
+  `zshai` automatically formats non-streamed terminal output with rich Markdown
+  rendering (set `ZSHAI_RENDER=0` to force raw text).
+- [**`shellspec`**](https://shellspec.info/): For executing the BDD test suite
+  (`spec/*_spec.sh`).
+- [**`ripwire`**](https://github.com/redhat-et/ripwire): For McCabe cyclomatic,
+  cognitive complexity, and CRAP score quality gates (`scripts/lint`).
+- [**`shfmt`**](https://github.com/mvdan/sh): For Zsh code formatting
+  conformance.
+
+## Installation
 
 ### Standalone CLI
 
@@ -58,21 +69,21 @@ source /path/to/zshai/zshai.plugin.zsh
 
 Settings resolve from environment variables with standard fallbacks:
 
-| Variable             | Fallback            | Default                     | Description                                                   |
-| -------------------- | ------------------- | --------------------------- | ------------------------------------------------------------- |
-| `ZSHAI_BASE_URL`     | `OPENAI_BASE_URL`   | `http://localhost:11434/v1` | OpenAI-compatible API base URL                                |
-| `ZSHAI_API_KEY`      | `OPENAI_API_KEY`    | `ollama`                    | API authentication key                                        |
-| `ZSHAI_MODEL`        | `OPENAI_MODEL`      | `qwen2.5-coder:7b`          | Model identifier                                              |
-| `ZSHAI_MAX_STEPS`    | -                   | `0`                         | Maximum agent execution turns (0 = unlimited)                 |
-| `ZSHAI_MAX_TOKENS`   | `OPENAI_MAX_TOKENS` | `64000`                     | Maximum generation tokens (clamped per model)                 |
-| `ZSHAI_NUM_CTX`      | -                   | `auto`                      | Context window size (auto-discovered from Ollama)             |
-| `ZSHAI_THINKING`     | -                   | `off`                       | Reasoning budget (`off`, `low`, `medium`, `high`, or token N) |
-| `ZSHAI_STREAM`       | -                   | `1`                         | Stream tokens live when in interactive terminal               |
-| `ZSHAI_RENDER`       | -                   | `1`                         | Enable terminal markdown rendering via glow/mdcat             |
-| `ZSHAI_TIMEOUT`      | -                   | `60`                        | HTTP request timeout in seconds                               |
-| `ZSHAI_WEBSEARCH`    | -                   | `1`                         | Enable web search tool (set 0 or use --no-websearch)          |
+| Variable             | Fallback            | Default                          | Description                                                   |
+| -------------------- | ------------------- | -------------------------------- | ------------------------------------------------------------- |
+| `ZSHAI_BASE_URL`     | `OPENAI_BASE_URL`   | `http://localhost:11434/v1`      | OpenAI-compatible API base URL                                |
+| `ZSHAI_API_KEY`      | `OPENAI_API_KEY`    | `ollama`                         | API authentication key                                        |
+| `ZSHAI_MODEL`        | `OPENAI_MODEL`      | `qwen2.5-coder:7b`               | Model identifier                                              |
+| `ZSHAI_MAX_STEPS`    | -                   | `0`                              | Maximum agent execution turns (0 = unlimited)                 |
+| `ZSHAI_MAX_TOKENS`   | `OPENAI_MAX_TOKENS` | `64000`                          | Maximum generation tokens (clamped per model)                 |
+| `ZSHAI_NUM_CTX`      | -                   | `auto`                           | Context window size (auto-discovered from Ollama)             |
+| `ZSHAI_THINKING`     | -                   | `off`                            | Reasoning budget (`off`, `low`, `medium`, `high`, or token N) |
+| `ZSHAI_STREAM`       | -                   | `1`                              | Stream tokens live when in interactive terminal               |
+| `ZSHAI_RENDER`       | -                   | `1`                              | Enable terminal markdown rendering via glow/mdcat             |
+| `ZSHAI_TIMEOUT`      | -                   | `60`                             | HTTP request timeout in seconds                               |
+| `ZSHAI_WEBSEARCH`    | -                   | `1`                              | Enable web search tool (set 0 or use --no-websearch)          |
 | `ZSHAI_ACTIVE_TOOLS` | -                   | `bash read write edit websearch` | Space-delimited active tools list                             |
-| `ZSHAI_BIND_DEFAULT` | -                   | `0`                         | If 1, forces binding `^G` to widget                           |
+| `ZSHAI_BIND_DEFAULT` | -                   | `0`                              | If 1, forces binding `^G` to widget                           |
 
 Query configuration via CLI:
 
@@ -145,6 +156,7 @@ bindkey '^X^A' zshai-widget
 ## Tools
 
 The harness provides 5 built-in coding tools executed in dedicated subshells:
+
 1. `bash(command)`: Executes shell command, captures combined stdout/stderr and
    exit code.
 2. `read(path, start_line, limit)`: Reads file content with 1-based line
@@ -155,6 +167,7 @@ The harness provides 5 built-in coding tools executed in dedicated subshells:
    search-and-replace on existing files.
 5. `websearch(query, limit)`: Searches the web via DuckDuckGo Lite and returns
    titles, URLs, and snippets.
+
 ### Safety Guards
 
 - **Output Truncation**: Tool output exceeding 200 lines is bounded: the first
@@ -190,11 +203,11 @@ scores):
 ```zsh
 zshai lint
 # or
-bin/lint
+scripts/lint
 ```
 
 To output raw JSON metrics for CI pipelines:
 
 ```zsh
-bin/lint --json
+scripts/lint --json
 ```

@@ -13,7 +13,7 @@ if ((json_mode == 0)); then
 fi
 
 local -a files
-files=(functions/* bin/* *.zsh spec/*.sh test/*.zsh(N))
+files=(functions/* bin/* scripts/* *.zsh spec/*.sh test/*.zsh(N))
 
 for f in "${files[@]}"; do
   if ! zsh -n "$f" 2>&1; then
@@ -33,10 +33,10 @@ fi
 if (($+commands[shfmt])); then
   if ! shfmt -help 2>&1 | grep -q "zsh"; then
     ((json_mode == 0)) && print -P "%F{yellow}SKIP: installed shfmt does not support Zsh dialect (-ln zsh). Upgrade shfmt to >= 3.10.%f"
-  elif shfmt -d -i 2 -ci -ln zsh functions/* bin/* *.zsh; then
+  elif shfmt -d -i 2 -ci -ln zsh functions/* bin/* scripts/* *.zsh; then
     ((json_mode == 0)) && print -P "%F{green}PASS: Formatting adheres to standard Zsh style.%f"
   else
-    ((json_mode == 0)) && print -P "%F{red}FAIL: Formatting errors detected. Run 'shfmt -w -i 2 -ci -ln zsh functions/* bin/* *.zsh' to fix.%f"
+    ((json_mode == 0)) && print -P "%F{red}FAIL: Formatting errors detected. Run 'shfmt -w -i 2 -ci -ln zsh functions/* bin/* scripts/* *.zsh' to fix.%f"
     ((errors++))
   fi
 else

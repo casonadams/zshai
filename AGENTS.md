@@ -11,15 +11,17 @@
     across adapters, tools, or subcommands. Factor shared patterns into
     canonical base functions.
   - Treat a source file exceeding ~150 lines or a function exceeding ~25 lines
-    as a review signal to check cohesion, eliminate boilerplate, and prune bloat.
+    as a review signal to check cohesion, eliminate boilerplate, and prune
+    bloat.
   - Zero dead code: remove obsolete functions, abandoned branches, and unused
     variables immediately.
 - **In-process over subprocess**: Favor native Zsh parameter expansions, string
   slicing, and built-ins over spawning subshells (`awk`, `sed`, `date`, `cat`)
   in tight loops.
-- **Opportunistic Markdown Rendering**: When stdout is a terminal, zshai delegates
-  non-streamed output to `glow` or `mdcat` if present on `$PATH`. Zero extra
-  dependencies: defaults cleanly to raw markdown if neither tool is installed.
+- **Opportunistic Markdown Rendering**: When stdout is a terminal, zshai
+  delegates non-streamed output to `glow` or `mdcat` if present on `$PATH`. Zero
+  extra dependencies: defaults cleanly to raw markdown if neither tool is
+  installed.
 
 ---
 
@@ -82,22 +84,21 @@
      `functions/`.
 
 5. **Documentation & Website Synchronization (Doc/Web Parity)**:
-   - `README.md` and `www/index.html` must always be updated together in the same
-     change whenever CLI options, environment variables (`ZSHAI_*`), built-in
-     tools, or installation instructions change.
-   - **Ripwire Situational Awareness & Co-Change**:
-     Run `ripwire . --situ` before committing to detect forgotten co-change
-     partners (Shotgun Surgery) across documentation and web assets.
-   - **Ripwire Doc Drift**:
-     Run `ripwire . --doc-drift` to confirm all code anchors and symbols
-     referenced in documentation remain valid against live definitions.
-   - **Ripwire Mentions**:
-     Run `ripwire . --mentions=<symbol>` when altering public functions or
-     variables to identify every doc section that requires an update.
-   - **Automated Parity Gate**:
-     `spec/web_spec.sh` enforces that all configuration variables and tools in
-     `README.md` are documented in `www/index.html`. CI will fail if parity
-     breaks.
+   - `README.md` and `www/index.html` must always be updated together in the
+     same change whenever CLI options, environment variables (`ZSHAI_*`),
+     built-in tools, or installation instructions change.
+   - **Ripwire Situational Awareness & Co-Change**: Run `ripwire . --situ`
+     before committing to detect forgotten co-change partners (Shotgun Surgery)
+     across documentation and web assets.
+   - **Ripwire Doc Drift**: Run `ripwire . --doc-drift` to confirm all code
+     anchors and symbols referenced in documentation remain valid against live
+     definitions.
+   - **Ripwire Mentions**: Run `ripwire . --mentions=<symbol>` when altering
+     public functions or variables to identify every doc section that requires
+     an update.
+   - **Automated Parity Gate**: `spec/web_spec.sh` enforces that all
+     configuration variables and tools in `README.md` are documented in
+     `www/index.html`. CI will fail if parity breaks.
 
 ---
 
@@ -114,7 +115,7 @@ test/verify_all.zsh
 # Run 3-stage linter & complexity quality gate
 zshai lint
 # or
-bin/lint
+scripts/lint
 ```
 
 ### Quality Gate Thresholds
@@ -136,8 +137,8 @@ Always verify that changes keep the codebase small, clean, minimal, and DRY:
      duplicated payload shapes.
 
 2. **Dead Code & Orphan Elimination**:
-   - Run `ripwire . --dead-code` to verify no unreferenced internal
-     functions, unused aliases, or orphaned helpers remain in the codebase.
+   - Run `ripwire . --dead-code` to verify no unreferenced internal functions,
+     unused aliases, or orphaned helpers remain in the codebase.
 3. **Quality & Bloat Regression Gate**:
    - Run `ripwire . --quality-delta` before committing or submitting a PR to
      ensure the change introduces zero regressions across complexity, clones,

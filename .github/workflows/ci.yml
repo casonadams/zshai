@@ -46,7 +46,7 @@ jobs:
         run: ripwire . --situ || true
 
       - name: Run lint & quality gate
-        run: ./bin/lint
+        run: ./scripts/lint
       - name: Run test suite
         run: ./test/verify_all.zsh
 

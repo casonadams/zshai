@@ -157,7 +157,7 @@ zshai() {
         ;;
       lint)
         shift
-        "${ZSHAI_HOME:-${0:A:h:h}}/bin/lint" "$@"
+        "${ZSHAI_HOME:-${0:A:h:h}}/scripts/lint" "$@"
         return $?
         ;;
       repl)

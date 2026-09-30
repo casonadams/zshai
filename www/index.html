@@ -41,6 +41,7 @@
       <ul class="nav-links">
         <li><a href="#playground" class="nav-link">Playground</a></li>
         <li><a href="#architecture" class="nav-link">Architecture</a></li>
+        <li><a href="#prerequisites" class="nav-link">Prerequisites</a></li>
         <li><a href="#tools" class="nav-link">Tools</a></li>
         <li><a href="#config" class="nav-link">Configuration</a></li>
       </ul>
@@ -107,6 +108,21 @@ export PATH="$HOME/.local/share/zshai/bin:$PATH"</code></pre>
           </button>
         </div>
       </div>
+
+      <!-- Prerequisites and Tooling Links -->
+      <div class="prereqs-strip">
+        <span class="prereq-label">Prerequisites:</span>
+        <a href="https://www.zsh.org/" target="_blank" rel="noopener" class="prereq-link">Zsh 5.8+</a>
+        <a href="https://curl.se/" target="_blank" rel="noopener" class="prereq-link">curl</a>
+        <a href="https://jqlang.github.io/jq/" target="_blank" rel="noopener" class="prereq-link">jq</a>
+        <span class="prereq-sep">&middot;</span>
+        <span class="prereq-label">Enhancements:</span>
+        <a href="https://github.com/swsnr/mdcat" target="_blank" rel="noopener" class="prereq-link">mdcat</a>
+        <a href="https://github.com/charmbracelet/glow" target="_blank" rel="noopener" class="prereq-link">glow</a>
+        <a href="https://github.com/redhat-et/ripwire" target="_blank" rel="noopener" class="prereq-link">ripwire</a>
+        <a href="https://shellspec.info/" target="_blank" rel="noopener" class="prereq-link">shellspec</a>
+        <a href="https://github.com/mvdan/sh" target="_blank" rel="noopener" class="prereq-link">shfmt</a>
+      </div>
     </div>
   </header>
 
@@ -114,42 +130,82 @@ export PATH="$HOME/.local/share/zshai/bin:$PATH"</code></pre>
   <section id="playground" class="playground-section">
     <div class="container">
       <div class="section-header">
-        <div class="section-tag">Interactive Terminal</div>
-        <h2 class="section-title">Experience zshai in Action</h2>
-        <p class="section-subtitle">Switch between execution modes to explore how zshai solves tasks, integrates into your prompt, and manages coding tools.</p>
+        <div class="section-tag">Interactive Playground</div>
+        <h2 class="section-title">Test zshai in Your Browser</h2>
+        <p class="section-subtitle">Click a scenario chip below or type commands directly into the terminal input line to experience autonomous tool execution, ZLE widget expansion, and multi-turn interaction.</p>
       </div>
 
-      <div class="terminal-mockup">
-        <div class="terminal-topbar">
-          <div class="window-dots">
-            <div class="window-dot dot-red"></div>
-            <div class="window-dot dot-yellow"></div>
-            <div class="window-dot dot-green"></div>
+      <!-- Quick Action Scenario Chips -->
+      <div class="terminal-chips-bar">
+        <button class="term-chip active" data-scenario="agent">
+          <span class="chip-badge">⚡ Agent Mode</span>
+          <span>Fix failing test in spec/</span>
+        </button>
+        <button class="term-chip" data-scenario="widget">
+          <span class="chip-badge">✨ ZLE Widget</span>
+          <span>Ctrl+G line buffer transform</span>
+        </button>
+        <button class="term-chip" data-scenario="repl">
+          <span class="chip-badge">💬 REPL</span>
+          <span>Interactive multi-turn session</span>
+        </button>
+        <button class="term-chip" data-scenario="websearch">
+          <span class="chip-badge">🔍 Web Search</span>
+          <span>DuckDuckGo query &amp; summarize</span>
+        </button>
+        <button class="term-chip" data-scenario="pipe">
+          <span class="chip-badge">📝 Piped Stdin</span>
+          <span>git diff | conventional commit</span>
+        </button>
+      </div>
+
+      <!-- Terminal Mockup Window -->
+      <div class="terminal-container">
+        <div class="terminal-titlebar">
+          <div class="terminal-controls">
+            <span class="control-dot control-close"></span>
+            <span class="control-dot control-min"></span>
+            <span class="control-dot control-max"></span>
           </div>
-          <div class="demo-modes">
-            <button class="demo-tab active" data-mode="agent">Agent CLI Loop</button>
-            <button class="demo-tab" data-mode="widget">ZLE Prompt (Ctrl+G)</button>
-            <button class="demo-tab" data-mode="repl">Interactive REPL</button>
-            <button class="demo-tab" data-mode="pipe">Piped Context</button>
+          <div class="terminal-title">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="4 17 10 11 4 5"/>
+              <line x1="12" y1="19" x2="20" y2="19"/>
+            </svg>
+            <span id="termTitle">zshai ~ autonomous shell agent</span>
+          </div>
+          <div class="terminal-status-badge">
+            <span class="status-dot"></span>
+            <span id="termStatusBadge">qwen2.5-coder:7b &middot; Ollama</span>
           </div>
         </div>
-        <div id="terminalScreen" class="terminal-screen">
-<span class="t-prompt">$</span> <span class="t-cmd">zshai "Diagnose failing test in spec/adapters_spec.sh and fix it"</span>
-<span class="t-dim">--------------------------------------------------------------------------------</span>
-<span class="t-agent">[zshai]</span> Analyzing repository context and execution intent...
-<span class="t-tool">&rarr; call read(path="spec/adapters_spec.sh", start_line=1, limit=50)</span>
-<span class="t-info">&larr; [read: 48 lines returned]</span>
-<span class="t-agent">[zshai]</span> Found Ollama num_ctx discover assertion failure on line 32.
-<span class="t-tool">&rarr; call read(path="functions/_zshai_adapters", start_line=55, limit=30)</span>
-<span class="t-info">&larr; [read: 30 lines returned]</span>
-<span class="t-agent">[zshai]</span> Discovered regex parameter parsing issue in fallback. Applying edit...
-<span class="t-tool">&rarr; call edit(path="functions/_zshai_adapters", old_text="...", new_text="...")</span>
-<span class="t-success">&larr; [edit: successfully patched functions/_zshai_adapters]</span>
-<span class="t-tool">&rarr; call bash(command="./test/verify_all.zsh")</span>
-<span class="t-dim">Running: /bin/zsh [zsh 5.9]</span>
-<span class="t-success">.............................................</span>
-<span class="t-success">Finished in 1.84 seconds. 45 examples, 0 failures.</span>
-<span class="t-agent">[zshai]</span> Verified! The test in spec/adapters_spec.sh is now passing with 0 failures.
+
+        <!-- Terminal Output Screen -->
+        <div id="terminalScreen" class="terminal-screen" role="region" aria-label="Interactive Terminal Output"></div>
+
+        <!-- Live Interactive Input Line -->
+        <form id="terminalInputForm" class="terminal-input-bar">
+          <div class="terminal-input-prompt">
+            <span class="p-user">cason</span><span class="p-at">@</span><span class="p-host">mac</span>:<span class="p-dir">~/zshai</span> <span class="p-git">(main ⚡)</span> <span class="p-sym">%</span>
+          </div>
+          <input id="terminalInput" type="text" class="terminal-input-field" autocomplete="off" spellcheck="false" placeholder="Type a command (try: zshai, test, lint, help) or press Enter to run...">
+          <button type="submit" id="terminalRunBtn" class="terminal-run-btn" title="Run command">
+            <span>↵ Run</span>
+          </button>
+        </form>
+
+        <!-- Terminal Footer Bar -->
+        <div class="terminal-footer-bar">
+          <div class="terminal-metrics">
+            <span class="metric-item">Model: <strong id="termFooterModel">qwen2.5-coder:7b</strong></span>
+            <span class="metric-item">Context: <strong id="termFooterCtx">32,768 tokens</strong></span>
+            <span class="metric-item">Warm Startup: <strong>&lt; 0.8 ms</strong></span>
+          </div>
+          <div class="terminal-actions">
+            <button type="button" id="termReplayBtn" class="btn-term-action" title="Replay current scenario animation">↺ Replay</button>
+            <button type="button" id="termClearBtn" class="btn-term-action" title="Clear terminal screen">Clear</button>
+            <button type="button" id="termCopyBtn" class="btn-term-action" title="Copy terminal output">Copy Output</button>
+          </div>
         </div>
       </div>
     </div>
@@ -172,7 +228,7 @@ export PATH="$HOME/.local/share/zshai/bin:$PATH"</code></pre>
             </svg>
           </div>
           <h3>Zero Compilation &amp; &lt; 1 ms Startup</h3>
-          <p>Loads instantly in your shell without background daemon overhead. When sourced as a plugin, warm startup completes in under 1 millisecond.</p>
+          <p>Loads instantly in your shell without background daemon overhead. Written in pure Zsh 5.8+ leveraging <a href="https://curl.se/" target="_blank" rel="noopener"><code>curl</code></a> and <a href="https://jqlang.github.io/jq/" target="_blank" rel="noopener"><code>jq</code></a>. Sourced as a plugin, warm startup completes in under 1 ms.</p>
         </div>
 
         <div class="feature-card">
@@ -227,12 +283,76 @@ export PATH="$HOME/.local/share/zshai/bin:$PATH"</code></pre>
             </svg>
           </div>
           <h3>Ripwire Complexity &amp; CRAP Gate</h3>
-          <p>Verified in CI against strict thresholds: Cognitive Complexity &le; 30, Cyclomatic &le; 25, and CRAP score &le; 30 using Ripwire AST analysis.</p>
+          <p>Verified in CI against strict thresholds using <a href="https://github.com/redhat-et/ripwire" target="_blank" rel="noopener"><code>ripwire</code></a> AST analysis: Cognitive Complexity &le; 30, Cyclomatic &le; 25, and CRAP &le; 30.</p>
         </div>
       </div>
     </div>
   </section>
 
+  <!-- Prerequisites & Tooling Section -->
+  <section id="prerequisites" class="features-section">
+    <div class="container">
+      <div class="section-header">
+        <div class="section-tag">Dependencies &amp; Tooling</div>
+        <h2 class="section-title">Prerequisites &amp; Ecosystem</h2>
+        <p class="section-subtitle">Zero compilation, zero package-manager runtimes. zshai depends strictly on standard CLI utilities native to POSIX/Unix environments.</p>
+      </div>
+
+      <div class="prereqs-cards-grid">
+        <!-- Required Card -->
+        <div class="prereq-box">
+          <div class="prereq-box-header">
+            <span class="prereq-tag req-tag">Required</span>
+            <h3>Core Runtime</h3>
+          </div>
+          <ul class="prereq-items-list">
+            <li>
+              <a href="https://www.zsh.org/" target="_blank" rel="noopener" class="tool-title-link">Zsh 5.8+</a>
+              <span class="tool-desc-text">Pure Zsh shell environment with ZLE line editor and parameter expansions.</span>
+            </li>
+            <li>
+              <a href="https://curl.se/" target="_blank" rel="noopener" class="tool-title-link">curl</a>
+              <span class="tool-desc-text">For HTTP/SSE streaming and provider communication.</span>
+            </li>
+            <li>
+              <a href="https://jqlang.github.io/jq/" target="_blank" rel="noopener" class="tool-title-link">jq</a>
+              <span class="tool-desc-text">For high-performance JSON stream processing and argument parsing.</span>
+            </li>
+          </ul>
+        </div>
+
+        <!-- Optional Enhancements Card -->
+        <div class="prereq-box">
+          <div class="prereq-box-header">
+            <span class="prereq-tag opt-tag">Optional Enhancements</span>
+            <h3>Terminal &amp; Quality Tools</h3>
+          </div>
+          <ul class="prereq-items-list">
+            <li>
+              <div class="tool-title-wrap">
+                <a href="https://github.com/charmbracelet/glow" target="_blank" rel="noopener" class="tool-title-link">glow</a>
+                <span class="prereq-or-text">or</span>
+                <a href="https://github.com/swsnr/mdcat" target="_blank" rel="noopener" class="tool-title-link">mdcat</a>
+              </div>
+              <span class="tool-desc-text">When present on <code>$PATH</code>, automatically formats non-streamed terminal output with rich Markdown rendering (set <code>ZSHAI_RENDER=0</code> to force raw text).</span>
+            </li>
+            <li>
+              <a href="https://shellspec.info/" target="_blank" rel="noopener" class="tool-title-link">shellspec</a>
+              <span class="tool-desc-text">For executing the BDD test suite (<code>spec/*_spec.sh</code>).</span>
+            </li>
+            <li>
+              <a href="https://github.com/redhat-et/ripwire" target="_blank" rel="noopener" class="tool-title-link">ripwire</a>
+              <span class="tool-desc-text">For McCabe cyclomatic, cognitive complexity, clones, dead code, and CRAP score quality gates (<code>scripts/lint</code>).</span>
+            </li>
+            <li>
+              <a href="https://github.com/mvdan/sh" target="_blank" rel="noopener" class="tool-title-link">shfmt</a>
+              <span class="tool-desc-text">For standard Zsh code formatting conformance (v3.10+).</span>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
   <!-- Tool Reference & Safety Matrix -->
   <section id="tools" class="tools-section">
     <div class="container">
@@ -291,137 +411,113 @@ export PATH="$HOME/.local/share/zshai/bin:$PATH"</code></pre>
     </div>
   </section>
 
-  <!-- Configuration & Setup Generator -->
+  <!-- Configuration Reference -->
   <section id="config" class="config-section">
     <div class="container">
       <div class="section-header">
-        <div class="section-tag">Setup &amp; Customization</div>
-        <h2 class="section-title">Provider Setup &amp; Configuration</h2>
-        <p class="section-subtitle">Configure model endpoints with standard environment variables. Use the generator to draft your shell configuration.</p>
+        <div class="section-tag">Configuration</div>
+        <h2 class="section-title">Environment Variables &amp; Settings</h2>
+        <p class="section-subtitle">Configure model endpoints, safety controls, and reasoning budgets via standard environment variables or query dynamically with <code>zshai config list</code>.</p>
       </div>
 
-      <div class="config-grid">
-        <!-- Interactive Generator -->
-        <div class="generator-card">
-          <h3 style="margin-bottom: 1rem; font-size: 1.25rem;">Provider Configuration Generator</h3>
-          <div class="form-group">
-            <label class="form-label" for="providerSelect">Provider Preset</label>
-            <select id="providerSelect" class="form-select">
-              <option value="ollama" selected>Ollama (Local / Zero Telemetry)</option>
-              <option value="anthropic">Anthropic (Claude 3.7 / 3.5 Sonnet)</option>
-              <option value="openai">OpenAI (GPT-4o / o1)</option>
-              <option value="deepseek">DeepSeek (DeepSeek V3 / R1)</option>
-              <option value="gemini">Google Gemini (Gemini 2.0 Flash)</option>
-            </select>
-          </div>
-
-          <div class="form-group">
-            <label class="form-label" for="providerModel">Model Name</label>
-            <input id="providerModel" class="form-input" type="text" value="qwen2.5-coder:7b">
-          </div>
-
-          <div class="form-group">
-            <label class="form-label" for="providerUrl">Base URL</label>
-            <input id="providerUrl" class="form-input" type="text" value="http://localhost:11434/v1">
-          </div>
-
-          <div class="form-group">
-            <label class="form-label" for="providerKey">API Key</label>
-            <input id="providerKey" class="form-input" type="text" value="ollama">
-          </div>
-
-          <div class="code-output-wrap">
-            <button class="btn-copy copy-float-btn" data-copy-target="configCodeOutput">Copy</button>
-            <code id="configCodeOutput" class="code-output"></code>
-          </div>
-        </div>
-
-        <!-- Reference Table -->
-        <div class="reference-card">
-          <h3 style="margin-bottom: 1rem; font-size: 1.25rem;">Environment Variables</h3>
-          <div class="table-responsive">
-            <table>
-              <thead>
-                <tr>
-                  <th>Variable</th>
-                  <th>Default</th>
-                  <th>Description</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td><code>ZSHAI_MODEL</code></td>
-                  <td><code>qwen2.5-coder:7b</code></td>
-                  <td>Active model name</td>
-                </tr>
-                <tr>
-                  <td><code>ZSHAI_BASE_URL</code></td>
-                  <td><code>localhost:11434/v1</code></td>
-                  <td>API endpoint base URL</td>
-                </tr>
-                <tr>
-                  <td><code>ZSHAI_API_KEY</code></td>
-                  <td><code>ollama</code></td>
-                  <td>Authentication token</td>
-                </tr>
-                <tr>
-                  <td><code>ZSHAI_THINKING</code></td>
-                  <td><code>off</code></td>
-                  <td>Reasoning budget (off/low/med/high)</td>
-                </tr>
-                <tr>
-                  <td><code>ZSHAI_SAFE</code></td>
-                  <td><code>0</code></td>
-                  <td>Prompt before mutating tools</td>
-                </tr>
-                <tr>
-                  <td><code>ZSHAI_MAX_STEPS</code></td>
-                  <td><code>0</code></td>
-                  <td>Max agent execution steps (0=unlimited)</td>
-                </tr>
-                <tr>
-                  <td><code>ZSHAI_MAX_TOKENS</code></td>
-                  <td><code>64000</code></td>
-                  <td>Max output tokens (clamped per model)</td>
-                </tr>
-                <tr>
-                  <td><code>ZSHAI_NUM_CTX</code></td>
-                  <td><code>auto</code></td>
-                  <td>Context window limit (discovered from Ollama)</td>
-                </tr>
-                <tr>
-                  <td><code>ZSHAI_STREAM</code></td>
-                  <td><code>1</code></td>
-                  <td>Stream tokens live in interactive terminal</td>
-                </tr>
-                <tr>
-                  <td><code>ZSHAI_TIMEOUT</code></td>
-                  <td><code>60</code></td>
-                  <td>HTTP request timeout in seconds</td>
-                </tr>
-                <tr>
-                  <td><code>ZSHAI_WEBSEARCH</code></td>
-                  <td><code>1</code></td>
-                  <td>Enable web search tool (set 0 or use --no-websearch)</td>
-                </tr>
-                <tr>
-                  <td><code>ZSHAI_ACTIVE_TOOLS</code></td>
-                  <td><code>bash read write edit websearch</code></td>
-                  <td>Space-delimited active tools list</td>
-                </tr>
-                <tr>
-                  <td><code>ZSHAI_RENDER</code></td>
-                  <td><code>1</code></td>
-                  <td>Render markdown via glow or mdcat if installed</td>
-                </tr>
-                <tr>
-                  <td><code>ZSHAI_BIND_DEFAULT</code></td>
-                  <td><code>0</code></td>
-                  <td>Forces binding ^G to zshai-widget</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
+      <div class="table-card config-table-card">
+        <div class="table-responsive">
+          <table>
+            <thead>
+              <tr>
+                <th>Variable</th>
+                <th>Fallback</th>
+                <th>Default</th>
+                <th>Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>ZSHAI_BASE_URL</code></td>
+                <td><code>OPENAI_BASE_URL</code></td>
+                <td><code>http://localhost:11434/v1</code></td>
+                <td>OpenAI-compatible API base URL</td>
+              </tr>
+              <tr>
+                <td><code>ZSHAI_API_KEY</code></td>
+                <td><code>OPENAI_API_KEY</code></td>
+                <td><code>ollama</code></td>
+                <td>API authentication key</td>
+              </tr>
+              <tr>
+                <td><code>ZSHAI_MODEL</code></td>
+                <td><code>OPENAI_MODEL</code></td>
+                <td><code>qwen2.5-coder:7b</code></td>
+                <td>Model identifier</td>
+              </tr>
+              <tr>
+                <td><code>ZSHAI_MAX_STEPS</code></td>
+                <td>&mdash;</td>
+                <td><code>0</code></td>
+                <td>Maximum agent execution turns (0 = unlimited)</td>
+              </tr>
+              <tr>
+                <td><code>ZSHAI_MAX_TOKENS</code></td>
+                <td><code>OPENAI_MAX_TOKENS</code></td>
+                <td><code>64000</code></td>
+                <td>Maximum generation tokens (clamped per model)</td>
+              </tr>
+              <tr>
+                <td><code>ZSHAI_NUM_CTX</code></td>
+                <td>&mdash;</td>
+                <td><code>auto</code></td>
+                <td>Context window size (auto-discovered from Ollama)</td>
+              </tr>
+              <tr>
+                <td><code>ZSHAI_THINKING</code></td>
+                <td>&mdash;</td>
+                <td><code>off</code></td>
+                <td>Reasoning budget (off, low, medium, high, or token N)</td>
+              </tr>
+              <tr>
+                <td><code>ZSHAI_STREAM</code></td>
+                <td>&mdash;</td>
+                <td><code>1</code></td>
+                <td>Stream tokens live when in interactive terminal</td>
+              </tr>
+              <tr>
+                <td><code>ZSHAI_SAFE</code></td>
+                <td>&mdash;</td>
+                <td><code>0</code></td>
+                <td>If 1, prompts before mutating tools</td>
+              </tr>
+              <tr>
+                <td><code>ZSHAI_TIMEOUT</code></td>
+                <td>&mdash;</td>
+                <td><code>60</code></td>
+                <td>HTTP request timeout in seconds</td>
+              </tr>
+              <tr>
+                <td><code>ZSHAI_WEBSEARCH</code></td>
+                <td>&mdash;</td>
+                <td><code>1</code></td>
+                <td>Enable web search tool (set 0 or use --no-websearch)</td>
+              </tr>
+              <tr>
+                <td><code>ZSHAI_ACTIVE_TOOLS</code></td>
+                <td>&mdash;</td>
+                <td><code>bash read write edit websearch</code></td>
+                <td>Space-delimited active tools list</td>
+              </tr>
+              <tr>
+                <td><code>ZSHAI_RENDER</code></td>
+                <td>&mdash;</td>
+                <td><code>1</code></td>
+                <td>Render markdown via glow or mdcat if installed</td>
+              </tr>
+              <tr>
+                <td><code>ZSHAI_BIND_DEFAULT</code></td>
+                <td>&mdash;</td>
+                <td><code>0</code></td>
+                <td>If 1, forces binding ^G to widget</td>
+              </tr>
+            </tbody>
+          </table>
         </div>
       </div>
     </div>

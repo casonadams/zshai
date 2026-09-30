@@ -5,6 +5,7 @@ Describe "web documentation and GitHub Pages assets"
         grep -q '<title>zshai' "${SHELLSPEC_PROJECT_ROOT}/www/index.html" &&
         grep -q 'id="playground"' "${SHELLSPEC_PROJECT_ROOT}/www/index.html" &&
         grep -q 'id="architecture"' "${SHELLSPEC_PROJECT_ROOT}/www/index.html" &&
+        grep -q 'id="prerequisites"' "${SHELLSPEC_PROJECT_ROOT}/www/index.html" &&
         grep -q 'id="tools"' "${SHELLSPEC_PROJECT_ROOT}/www/index.html" &&
         grep -q 'id="config"' "${SHELLSPEC_PROJECT_ROOT}/www/index.html" &&
         echo "valid"
@@ -28,8 +29,8 @@ Describe "web documentation and GitHub Pages assets"
     check_js() {
       test -f "${SHELLSPEC_PROJECT_ROOT}/www/js/app.js" &&
         grep -q 'initTheme' "${SHELLSPEC_PROJECT_ROOT}/www/js/app.js" &&
+        grep -q 'initInstallSwitcher' "${SHELLSPEC_PROJECT_ROOT}/www/js/app.js" &&
         grep -q 'initTerminalPlayground' "${SHELLSPEC_PROJECT_ROOT}/www/js/app.js" &&
-        grep -q 'initProviderGenerator' "${SHELLSPEC_PROJECT_ROOT}/www/js/app.js" &&
         echo "valid"
     }
     When call check_js
@@ -88,5 +89,37 @@ Describe "web documentation and GitHub Pages assets"
     }
     When call check_parity
     The output should eq "in-sync"
+  End
+
+  It "links all required tools and enhancements across README.md and www/index.html"
+    check_tool_links() {
+      local readme="${SHELLSPEC_PROJECT_ROOT}/README.md"
+      local web="${SHELLSPEC_PROJECT_ROOT}/www/index.html"
+      local -a urls
+      urls=(
+        "https://www.zsh.org/"
+        "https://curl.se/"
+        "https://jqlang.github.io/jq/"
+        "https://github.com/charmbracelet/glow"
+        "https://github.com/swsnr/mdcat"
+        "https://shellspec.info/"
+        "https://github.com/redhat-et/ripwire"
+        "https://github.com/mvdan/sh"
+      )
+      local u
+      for u in "${urls[@]}"; do
+        if ! grep -q "$u" "$readme"; then
+          echo "missing-readme-link: $u"
+          return 1
+        fi
+        if ! grep -q "$u" "$web"; then
+          echo "missing-web-link: $u"
+          return 1
+        fi
+      done
+      echo "all-linked"
+    }
+    When call check_tool_links
+    The output should eq "all-linked"
   End
 End
