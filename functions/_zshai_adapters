@@ -14,8 +14,9 @@ _zshai_adapter_resolve() {
 _zshai_adapter_generic_cap() {
   (($2 > 0)) && print -r -- "$2" || print -r -- "64000"
 }
+
 _zshai_adapter_generic_payload() {
-  local model="$1" hist="$2" tools="$3" max_tokens="$4" thinking="$5" base_url="$6"
+  local model="$1" hist="$2" tools="$3" max_tokens="$4"
   jq -n \
     --arg model "$model" \
     --argjson messages "$hist" \
@@ -29,10 +30,10 @@ _zshai_adapter_generic_payload() {
     + (if $tools != null and ($tools | length) > 0 then {tools: $tools, tool_choice: "auto"} else {} end)'
 }
 
+# --- Ollama Adapter ---
 _zshai_adapter_ollama_discover_context() {
   local base_url="$1" model="$2"
-  local host="${base_url%/v1*}"
-  host="${host%/chat/completions*}"
+  local host="${${base_url%/v1*}%/chat/completions*}"
   host="${host%/}"
 
   local show_resp
@@ -57,11 +58,9 @@ _zshai_adapter_ollama_discover_context() {
 
 _zshai_adapter_ollama_payload() {
   local model="$1" hist="$2" tools="$3" max_tokens="$4" thinking="$5" base_url="$6"
-
-  local cfg_ctx
-  cfg_ctx="$(_zshai_config_get num_ctx 2>/dev/null || echo "auto")"
-
+  local cfg_ctx="$(_zshai_config_get num_ctx 2>/dev/null || echo "auto")"
   local num_ctx=""
+
   if [[ "$cfg_ctx" == <-> ]]; then
     num_ctx="$cfg_ctx"
   elif [[ "$cfg_ctx" != "off" && "$cfg_ctx" != "none" && "$cfg_ctx" != "0" ]]; then
@@ -70,36 +69,28 @@ _zshai_adapter_ollama_payload() {
     else
       num_ctx=$(_zshai_adapter_ollama_discover_context "$base_url" "$model")
       if [[ -n "$num_ctx" ]]; then
-        typeset -g ZSHAI_DISCOVERED_NUM_CTX="$num_ctx"
-        typeset -g ZSHAI_DISCOVERED_MODEL="$model"
+        typeset -g ZSHAI_DISCOVERED_NUM_CTX="$num_ctx" ZSHAI_DISCOVERED_MODEL="$model"
       fi
     fi
   fi
 
   local predict="$max_tokens"
-  if [[ "$num_ctx" == <-> ]] && ((num_ctx > 0 && predict > num_ctx)); then
-    predict="$num_ctx"
-  fi
+  [[ "$num_ctx" == <-> ]] && ((num_ctx > 0 && predict > num_ctx)) && predict="$num_ctx"
 
-  jq -n \
-    --arg model "$model" \
-    --argjson messages "$hist" \
-    --argjson tools "${tools:-null}" \
-    --arg max "$max_tokens" \
-    --arg ctx "$num_ctx" \
-    --arg predict "$predict" '
-    {
-      model: $model,
-      messages: $messages,
-      max_tokens: ($max | tonumber)
-    }
-    + (if $tools != null and ($tools | length) > 0 then {tools: $tools, tool_choice: "auto"} else {} end)
-    + (if ($ctx | length) > 0 or ($predict | length) > 0 then
-        {options: (
-          (if ($ctx | length) > 0 then {num_ctx: ($ctx | tonumber)} else {} end) +
-          (if ($predict | length) > 0 then {num_predict: ($predict | tonumber)} else {} end)
-        )}
-       else {} end)'
+  local base
+  base=$(_zshai_adapter_generic_payload "$model" "$hist" "$tools" "$max_tokens")
+
+  if [[ -n "$num_ctx" || -n "$predict" ]]; then
+    print -r -- "$base" | jq -c \
+      --arg ctx "$num_ctx" \
+      --arg predict "$predict" '
+      . + {options: (
+        (if ($ctx | length) > 0 then {num_ctx: ($ctx | tonumber)} else {} end) +
+        (if ($predict | length) > 0 then {num_predict: ($predict | tonumber)} else {} end)
+      )}'
+  else
+    print -r -- "$base"
+  fi
 }
 
 # --- Anthropic Adapter ---
@@ -111,7 +102,7 @@ _zshai_adapter_anthropic_cap() {
 }
 
 _zshai_adapter_anthropic_payload() {
-  local model="$1" hist="$2" tools="$3" max_tokens="$4" thinking="${(L)5}" base_url="$6"
+  local model="$1" hist="$2" tools="$3" max_tokens="$4" thinking="${(L)5}"
   local tb=0
   case "$thinking" in
     low) tb=2048 ;;
@@ -120,28 +111,18 @@ _zshai_adapter_anthropic_payload() {
     <->) tb="$thinking" ;;
   esac
 
-  if ((tb > 0 && max_tokens < tb + 4096)); then
-    max_tokens=$((tb + 4096))
-  fi
+  ((tb > 0 && max_tokens < tb + 4096)) && max_tokens=$((tb + 4096))
 
-  jq -n \
-    --arg model "$model" \
-    --argjson messages "$hist" \
-    --argjson tools "${tools:-null}" \
-    --arg max "$max_tokens" \
-    --arg tb "$tb" \
-    --arg thinking "$thinking" '
-    {
-      model: $model,
-      messages: $messages,
-      max_tokens: ($max | tonumber)
-    }
-    + (if $tools != null and ($tools | length) > 0 then {tools: $tools, tool_choice: "auto"} else {} end)
-    + (if ($tb | tonumber) > 0 then
-        {thinking: {type: "enabled", budget_tokens: ($tb | tonumber)}}
-       elif $thinking == "off" then
-        {thinking: {type: "disabled"}}
-       else {} end)'
+  local base
+  base=$(_zshai_adapter_generic_payload "$model" "$hist" "$tools" "$max_tokens")
+
+  if ((tb > 0)); then
+    print -r -- "$base" | jq -c --arg tb "$tb" '. + {thinking: {type: "enabled", budget_tokens: ($tb | tonumber)}}'
+  elif [[ "$thinking" == "off" ]]; then
+    print -r -- "$base" | jq -c '. + {thinking: {type: "disabled"}}'
+  else
+    print -r -- "$base"
+  fi
 }
 
 # --- OpenAI Adapter ---
@@ -153,7 +134,7 @@ _zshai_adapter_openai_cap() {
 }
 
 _zshai_adapter_openai_payload() {
-  local model="$1" hist="$2" tools="$3" max_tokens="$4" thinking="${(L)5}" base_url="$6"
+  local model="$1" hist="$2" tools="$3" max_tokens="$4" thinking="${(L)5}"
   local effort=""
   case "$thinking" in
     low) effort="low" ;;
@@ -161,19 +142,14 @@ _zshai_adapter_openai_payload() {
     high | max) effort="high" ;;
   esac
 
-  jq -n \
-    --arg model "$model" \
-    --argjson messages "$hist" \
-    --argjson tools "${tools:-null}" \
-    --arg max "$max_tokens" \
-    --arg effort "$effort" '
-    {
-      model: $model,
-      messages: $messages,
-      max_tokens: ($max | tonumber)
-    }
-    + (if $tools != null and ($tools | length) > 0 then {tools: $tools, tool_choice: "auto"} else {} end)
-    + (if ($effort | length) > 0 and ($model | test("o1|o3")) then {reasoning_effort: $effort} else {} end)'
+  local base
+  base=$(_zshai_adapter_generic_payload "$model" "$hist" "$tools" "$max_tokens")
+
+  if [[ -n "$effort" && "$model" == *(o1|o3)* ]]; then
+    print -r -- "$base" | jq -c --arg effort "$effort" '. + {reasoning_effort: $effort}'
+  else
+    print -r -- "$base"
+  fi
 }
 
 # --- DeepSeek Adapter ---
@@ -181,6 +157,7 @@ _zshai_adapter_deepseek_cap() { (($2 > 0 && $2 < 8192)) && print -r -- "$2" || p
 
 # --- Gemini Adapter ---
 _zshai_adapter_gemini_cap() { (($2 > 0 && $2 < 65536)) && print -r -- "$2" || print -r -- "65536"; }
+
 _zshai_adapters() {
   return 0
 }
