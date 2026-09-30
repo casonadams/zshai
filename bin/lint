@@ -106,6 +106,66 @@ if (($+commands[ripwire])); then
   else
     print -P "%F{green}PASS: Quality Gate satisfied: All functions within complexity & CRAP limits.%f"
   fi
+
+  if ((json_mode == 0)); then
+    print ""
+    print -P "%F{cyan}==> 4. Clones & Duplication Audit (ripwire --clones)%f"
+  fi
+  local clones_out
+  clones_out=$(ripwire . --clones 2>/dev/null)
+  local non_exempt
+  non_exempt=$(print -r -- "$clones_out" | tr '>' '\n' | grep -E '^<group type' | grep -v 'exempt=' || true)
+  if [[ -n "$non_exempt" ]]; then
+    ((json_mode == 0)) && print -P "%F{red}FAIL: Duplicate code clones detected across codebase.%f"
+    ((errors++))
+  else
+    ((json_mode == 0)) && print -P "%F{green}PASS: Zero non-exempt duplicate clones detected.%f"
+  fi
+
+  if ((json_mode == 0)); then
+    print ""
+    print -P "%F{cyan}==> 5. Dead Code Audit (ripwire --dead-code)%f"
+  fi
+  local dc_out
+  dc_out=$(ripwire . --dead-code 2>/dev/null)
+  local dc_count
+  dc_count=$(print -r -- "$dc_out" | grep -oE 'count="[0-9]+"' | head -n 1 | cut -d '"' -f 2 || echo "0")
+  if ((dc_count > 0)); then
+    ((json_mode == 0)) && print -P "%F{red}FAIL: $dc_count unreferenced dead functions detected.%f"
+    ((errors += dc_count))
+  else
+    ((json_mode == 0)) && print -P "%F{green}PASS: Zero dead code functions detected.%f"
+  fi
+
+  if ((json_mode == 0)); then
+    print ""
+    print -P "%F{cyan}==> 6. Documentation Drift Check (ripwire --doc-drift)%f"
+  fi
+  local dd_out
+  dd_out=$(ripwire . --doc-drift 2>/dev/null)
+  local dd_count
+  dd_count=$(print -r -- "$dd_out" | grep -oE 'drift="[0-9]+"' | head -n 1 | cut -d '"' -f 2 || echo "0")
+  if ((dd_count > 0)); then
+    ((json_mode == 0)) && print -P "%F{red}FAIL: $dd_count drifted documentation claims detected.%f"
+    ((errors += dd_count))
+  else
+    ((json_mode == 0)) && print -P "%F{green}PASS: Zero documentation drift detected.%f"
+  fi
+
+  if ((json_mode == 0)); then
+    print ""
+    print -P "%F{cyan}==> 7. Quality Delta Regression Gate (ripwire --quality-delta)%f"
+  fi
+  local qd_out
+  qd_out=$(ripwire . --quality-delta 2>/dev/null)
+  local qd_gating
+  qd_gating=$(print -r -- "$qd_out" | grep -oE 'gating="[0-9]+"' | head -n 1 | cut -d '"' -f 2 || echo "0")
+  if ((qd_gating > 0)); then
+    ((json_mode == 0)) && print -P "%F{red}FAIL: $qd_gating gating quality regressions detected.%f"
+    ((errors += qd_gating))
+  else
+    ((json_mode == 0)) && print -P "%F{green}PASS: Zero quality regressions detected vs baseline.%f"
+  fi
 else
   print -P "%F{yellow}SKIP: ripwire not found on PATH.%f"
 fi

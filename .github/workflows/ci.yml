@@ -35,10 +35,11 @@ jobs:
           chmod +x "$HOME/.local/bin/ripwire"
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
           "$HOME/.local/bin/ripwire" --version
+      - name: Ripwire situational awareness
+        run: ripwire . --situ || true
 
       - name: Run lint & quality gate
         run: ./bin/lint
-
       - name: Run test suite
         run: ./test/verify_all.zsh
 
