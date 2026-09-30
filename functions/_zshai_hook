@@ -1,0 +1,38 @@
+_zshai_hook() {
+  local event="$1" payload="$2" cand hook_bin="" exit_code=0 hook_out="" action=""
+  local -a cands timeout_cmd=()
+
+  [[ -n "${ZSHAI_HOOKS_DIR:-}" ]] && cands+=("${ZSHAI_HOOKS_DIR}/on_${event}" "${ZSHAI_HOOKS_DIR}/${event}")
+  cands+=("${PWD}/.agents/hooks/on_${event}" "${PWD}/.agents/hooks/${event}" "${HOME}/.agents/hooks/on_${event}" "${HOME}/.agents/hooks/${event}")
+
+  for cand in "${cands[@]}"; do
+    if [[ -e "$cand" && ! -d "$cand" ]]; then
+      if [[ ! -x "$cand" ]]; then
+        print -u2 -P -- "%F{yellow}[zshai hook warning: ${event} hook failed with exit code 126]%f"
+        return 0
+      fi
+      hook_bin="$cand"
+      break
+    fi
+  done
+  [[ -z "$hook_bin" ]] && return 0
+
+  (($+commands[timeout])) && timeout_cmd=(timeout 3) || { (($+commands[gtimeout])) && timeout_cmd=(gtimeout 3); }
+  hook_out=$(print -r -- "$payload" | ${timeout_cmd:+"${timeout_cmd[@]}"} "$hook_bin" 2>/dev/null)
+  exit_code=$?
+  if ((exit_code != 0)); then
+    print -u2 -P -- "%F{yellow}[zshai hook warning: ${event} hook failed with exit code ${exit_code}]%f"
+    return 0
+  fi
+
+  [[ -z "$hook_out" ]] && return 0
+  action=$(print -r -- "$hook_out" | jq -r '.action // empty' 2>/dev/null)
+  case "$action" in
+    rewrite_args) print -r -- "$hook_out" | jq -c '{action: "rewrite_args", args: .args}' 2>/dev/null ;;
+    skip) print -r -- "$hook_out" | jq -c '{action: "skip", reason: (.reason // "by hook")}' 2>/dev/null ;;
+    stop) print -r -- "$hook_out" | jq -c '{action: "stop", reason: (.reason // "by hook")}' 2>/dev/null ;;
+    rewrite_result) print -r -- "$hook_out" | jq -c '{action: "rewrite_result", result: (.result // "")}' 2>/dev/null ;;
+  esac
+}
+
+_zshai_hook "$@"

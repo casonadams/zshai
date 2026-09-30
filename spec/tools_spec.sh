@@ -76,6 +76,41 @@ Describe "_zshai_tools"
       The variable PWD should eq "$orig_pwd"
       The variable LEAKED_VAR should be undefined
     End
+
+    It "truncates output exceeding 50 lines to 10 head and 39 tail with log path"
+      run_bash_100() {
+        local res
+        res=$(_zshai_tool_bash "seq 1 100")
+        print -r -- "$res"
+      }
+      When call run_bash_100
+      The line 1 of output should eq "1"
+      The line 10 of output should eq "10"
+      The line 11 of output should include "... [output truncated: 51 lines omitted. Full log: "
+      The line 12 of output should eq "62"
+      The line 50 of output should eq "100"
+      The lines of output should eq 50
+    End
+
+    It "preserves full output in log file when truncated"
+      check_log_file() {
+        local res log_file line_cnt
+        res=$(_zshai_tool_bash "seq 1 100")
+        log_file=$(print -r -- "$res" | sed -n 's/.*Full log: \([^ ]*\)\].*/\1/p')
+        [[ -n "$log_file" && -f "$log_file" ]] || return 1
+        line_cnt=$(wc -l < "$log_file" | tr -d ' ')
+        rm -f "$log_file"
+        print -r -- "$line_cnt"
+      }
+      When call check_log_file
+      The output should eq "100"
+    End
+
+    It "appends exit code notice after tail when command fails with large output"
+      When call _zshai_tool_bash "seq 1 100; exit 1"
+      The line 50 of output should eq "[Process exited with code 1]"
+      The lines of output should eq 50
+    End
   End
 
   Context "websearch tool"

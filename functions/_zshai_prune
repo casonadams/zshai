@@ -1,0 +1,86 @@
+_zshai_prune() {
+  local transcript="$1"
+  local cap="${2:-}"
+
+  if [[ -z "$transcript" ]] && [[ ! -t 0 ]]; then
+    transcript="$(cat)"
+  fi
+  [[ -z "$transcript" || "$transcript" == "[]" || "$transcript" == "null" ]] && {
+    print -r -- "${transcript:-[]}"
+    return 0
+  }
+
+  local pruned
+  pruned=$(print -r -- "$transcript" | jq -c '
+    ([to_entries[] | select(.value.role != "tool")] | last | .key // -1) as $boundary |
+    [
+      to_entries[] |
+      if .key < $boundary and .value.role == "tool" then
+        .value as $v |
+        (($v.content // "") | split("\n")) as $lines |
+        ($lines | length) as $lcount |
+        (($v.content // "") | length) as $blen |
+        if $lcount > 20 or $blen > 1000 then
+          (($v.content // "") | capture("Full log: (?<path>[^ \t\n\\]]+)")? // null) as $cap |
+          if $cap then
+            .value.content = "[Tool '\''\($v.name // "tool")'\'' output pruned (\($lcount) lines). Full log: \($cap.path)]"
+          else
+            .value.content = "[Tool '\''\($v.name // "tool")'\'' output pruned (\($lcount) lines).]"
+          end
+        else
+          .
+        end
+      else
+        .
+      end | .value
+    ]
+  ' 2>/dev/null)
+  [[ -z "$pruned" ]] && pruned="$transcript"
+
+  if [[ -z "$cap" ]]; then
+    if (($+functions[_zshai_config_get])); then
+      local base_url model raw_max adapter cap_fn
+      base_url="$(_zshai_config_get base_url 2>/dev/null)"
+      model="$(_zshai_config_get model 2>/dev/null)"
+      raw_max="$(_zshai_config_get max_tokens 2>/dev/null)"
+      if (($+functions[_zshai_adapter_resolve])); then
+        adapter=$(_zshai_adapter_resolve "$base_url" "$model")
+        cap_fn="_zshai_adapter_${adapter}_cap"
+        (($+functions[$cap_fn])) || cap_fn="_zshai_adapter_generic_cap"
+        cap=$($cap_fn "$model" "$raw_max" 2>/dev/null)
+      fi
+    fi
+  fi
+  cap="${cap:-64000}"
+
+  local est_tokens=$((${#pruned} / 4))
+  local token_threshold=$((cap * 8 / 10))
+  if ((est_tokens > token_threshold)); then
+    local target_tokens=$((cap * 75 / 100))
+    local windowed
+    windowed=$(print -r -- "$pruned" | jq -c --argjson max_tokens "$target_tokens" '
+      if length <= 2 then .
+      else
+        .[0] as $m0 | .[1] as $m1 |
+        ($m0 | tostring | length) as $l0 |
+        ($m1 | tostring | length) as $l1 |
+        (($max_tokens * 4) - $l0 - $l1) as $budget |
+        (.[2:] | reverse) as $rest |
+        reduce $rest[] as $item (
+          {kept: [], used: 0};
+          ($item | tostring | length) as $ilen |
+          if .used + $ilen <= $budget or (.kept | length) == 0 then
+            {kept: ([$item] + .kept), used: (.used + $ilen)}
+          else
+            .
+          end
+        ) | [$m0, $m1] + .kept
+      end
+    ' 2>/dev/null)
+    [[ -n "$windowed" ]] && pruned="$windowed"
+  fi
+
+  print -r -- "$pruned"
+}
+
+_zshai_prune "$@"

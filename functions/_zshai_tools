@@ -17,11 +17,29 @@ EOF
       _zshai_tool_bash "$cmd"
       ;;
     *)
-      local cmd="$1" output="" exit_code=0
-      output="$( (eval "$cmd") 2>&1)"
+      local cmd="$1" output="" exit_code=0 log_dir="${TMPDIR:-/tmp}/zshai" log_file=""
+      mkdir -p -m 0700 "$log_dir" 2>/dev/null
+      log_file=$(mktemp "${log_dir}/bash-XXXXXX" 2>/dev/null || mktemp "${TMPDIR:-/tmp}/bash-XXXXXX" 2>/dev/null)
+      if [[ -n "$log_file" ]]; then
+        mv "$log_file" "${log_file}.log" 2>/dev/null && log_file="${log_file}.log"
+        chmod 0600 "$log_file" 2>/dev/null
+      fi
+      (eval "$cmd") >"${log_file:-/dev/null}" 2>&1
       exit_code=$?
-      ((exit_code != 0)) && output="$(printf "%s\n[Process exited with code %d]" "${output:-}" "$exit_code")"
-      _zshai_truncate "$output"
+      output="$(cat "$log_file" 2>/dev/null)"
+      if ((exit_code != 0)); then
+        output="$(printf "%s\n[Process exited with code %d]" "${output:-}" "$exit_code")"
+        [[ -n "$log_file" ]] && print -r -- "[Process exited with code $exit_code]" >>"$log_file"
+      fi
+      local max_lines="${ZSHAI_BASH_MAX_LINES:-50}"
+      local -a out_lines
+      out_lines=("${(@f)output}")
+      if ((${#out_lines} <= max_lines)); then
+        [[ -n "$log_file" ]] && rm -f "$log_file"
+        _zshai_truncate "$output" "$max_lines"
+      else
+        _zshai_truncate "$output" "$max_lines" "$log_file"
+      fi
       ;;
   esac
 }

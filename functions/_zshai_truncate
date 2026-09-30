@@ -1,6 +1,9 @@
 _zshai_truncate() {
   local text="$1"
   local max_lines="${2:-200}"
+  local log_path="$3"
+  local head_count="$4"
+  local tail_count="$5"
 
   if [[ -z "$text" ]] && [[ ! -t 0 ]]; then
     text="$(cat)"
@@ -16,19 +19,38 @@ _zshai_truncate() {
     return 0
   fi
 
-  local head_count=120
-  local tail_count=79
-
-  if ((${#lines} <= head_count + tail_count)); then
-    head_count=$((max_lines * 6 / 10))
-    tail_count=$((max_lines - head_count - 1))
-    ((head_count < 1)) && head_count=1
-    ((tail_count < 1)) && tail_count=1
+  if [[ -z "$head_count" || -z "$tail_count" ]]; then
+    if ((max_lines <= 50)); then
+      head_count=10
+      tail_count=39
+      if ((head_count + tail_count >= max_lines)); then
+        head_count=$((max_lines / 5))
+        ((head_count < 1)) && head_count=1
+        tail_count=$((max_lines - head_count - 1))
+        ((tail_count < 1)) && tail_count=1
+      fi
+    else
+      head_count=120
+      tail_count=79
+      if ((head_count + tail_count >= max_lines)); then
+        head_count=$((max_lines * 6 / 10))
+        tail_count=$((max_lines - head_count - 1))
+        ((head_count < 1)) && head_count=1
+        ((tail_count < 1)) && tail_count=1
+      fi
+    fi
   fi
 
   local omitted=$((${#lines} - head_count - tail_count))
+  local notice
+  if [[ -n "$log_path" ]]; then
+    notice="... [output truncated: ${omitted} lines omitted. Full log: ${log_path}] ..."
+  else
+    notice="... [output truncated: ${omitted} lines omitted] ..."
+  fi
+
   print -r -- "${(F)lines[1,head_count]}"
-  print -r -- "... [output truncated: ${omitted} lines omitted] ..."
+  print -r -- "$notice"
   print -r -- "${(F)lines[-tail_count,-1]}"
 }
 

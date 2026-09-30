@@ -67,11 +67,15 @@ Settings resolve from environment variables with standard fallbacks:
 | `ZSHAI_NUM_CTX`      | -                   | `auto`                           | Context window size (auto-discovered from Ollama)             |
 | `ZSHAI_THINKING`     | -                   | `off`                            | Reasoning budget (`off`, `low`, `medium`, `high`, or token N) |
 | `ZSHAI_STREAM`       | -                   | `1`                              | Stream tokens live when in interactive terminal               |
+| `ZSHAI_SAFE`         | -                   | `0`                              | Prompt for confirmation before running mutating tools         |
 | `ZSHAI_RENDER`       | -                   | `1`                              | Enable terminal markdown rendering via glow/mdcat             |
 | `ZSHAI_TIMEOUT`      | -                   | `60`                             | HTTP request timeout in seconds                               |
 | `ZSHAI_WEBSEARCH`    | -                   | `1`                              | Enable web search tool (set 0 or use --no-websearch)          |
 | `ZSHAI_ACTIVE_TOOLS` | -                   | `bash read write edit websearch` | Space-delimited active tools list                             |
 | `ZSHAI_BIND_DEFAULT` | -                   | `0`                              | If 1, forces binding `^G` to widget                           |
+| `ZSHAI_HOOKS_DIR`    | -                   | -                                | Custom directory for tool lifecycle hooks                     |
+| `ZSHAI_BASH_MAX_LINES` | -                 | `50`                             | Max bash output lines before tail truncation                  |
+| `ZSHAI_RTK`          | -                   | `auto`                           | Optimize shell commands via Rust Token Killer                 |
 
 Query configuration via CLI:
 
@@ -156,11 +160,24 @@ The harness provides 5 built-in coding tools executed in dedicated subshells:
 5. `websearch(query, limit)`: Searches the web via DuckDuckGo Lite and returns
    titles, URLs, and snippets.
 
-### Safety Guards
+### Safety Guards & Context Management
 
-- **Output Truncation**: Tool output exceeding 200 lines is bounded: the first
-  120 lines and final 79 lines are returned with an omission count notice
-  (`... [output truncated: N lines omitted] ...`).
+- **Tail-Biased Bash Output & Full Logging**: Bash command output exceeding
+  `ZSHAI_BASH_MAX_LINES` (default 50) is truncated to 10 head lines and 39 tail
+  lines to preserve stack traces and failure summaries. The unabridged output is
+  preserved in `${TMPDIR:-/tmp}/zshai/bash-*.log`.
+- **Zero-LLM Context Pruning ("Shake")**: Historical tool observations (>20 lines
+  or >1000 bytes) are automatically compacted prior to completion calls, linking
+  to full log files where available.
+- **Sliding-Window Ceiling Guard**: When estimated transcript tokens exceed 80%
+  of model capacity, a sliding window preserves system instructions, the original
+  prompt, and recent history fitting within 75% of capacity.
+- **Lifecycle Hooks**: Custom hook executables in `${ZSHAI_HOOKS_DIR}`,
+  `.agents/hooks/`, or `~/.agents/hooks/` can intercept tool calls to rewrite
+  arguments (`rewrite_args`), skip execution (`skip`), stop the loop (`stop`), or
+  transform observations (`rewrite_result`).
+- **RTK Command Optimization**: When `rtk` is available and `ZSHAI_RTK=1` or `auto`,
+  commands sent to `bash` are automatically optimized using `rtk rewrite`.
 - **Repetition Guard**: If the model invokes the identical tool and arguments 3
   consecutive times, execution is intercepted and a repetition error observation
   is fed back to break loops.

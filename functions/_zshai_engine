@@ -129,35 +129,112 @@ in_b { cmd = cmd (length(cmd) > 0 ? "\n" : "") $0; }
   _zshai_engine_normalize_tool_calls "$tool_calls_json"
 }
 
-_zshai_engine_exec_calls() {
-  local tool_calls_json="$1"
-  local quiet="${2:-0}"
+_zshai_engine_rtk_rewrite() {
+  local tool_args="$1"
+  if [[ "${ZSHAI_RTK:-}" != "1" && "${ZSHAI_RTK:-}" != "auto" ]] || ! (($+commands[rtk])); then
+    print -r -- "$tool_args"
+    return 0
+  fi
+  local cmd rewritten rtk_ret
+  cmd=$(print -r -- "$tool_args" | jq -r '.command // empty' 2>/dev/null || echo "$tool_args")
+  if [[ -n "$cmd" && "$cmd" != rtk\ * ]]; then
+    rewritten=$(rtk rewrite "$cmd" 2>/dev/null)
+    rtk_ret=$?
+    if ((rtk_ret == 0 || rtk_ret == 3)) && [[ -n "$rewritten" && "$rewritten" != "$cmd" ]]; then
+      jq -c -n --arg cmd "$rewritten" '{command: $cmd}' 2>/dev/null && return 0
+    fi
+  fi
+  print -r -- "$tool_args"
+}
 
+_zshai_engine_exec_calls() {
+  local tool_calls_json="$1" quiet="${2:-0}" current_step="${3:-0}"
   local tool_id="" tool_name="" tool_args="" norm_args="" tool_output=""
-  local num_calls=0 i=0
+  local hook_payload="" hook_res="" hook_action="" reason="" result_payload=""
+  local num_calls=0 i=0 args_rewritten=0
   num_calls=$(print -r -- "$tool_calls_json" | jq -r 'length')
 
   for ((i = 0; i < num_calls; i++)); do
     tool_id=$(print -r -- "$tool_calls_json" | jq -r ".[$i].id")
     tool_name=$(print -r -- "$tool_calls_json" | jq -r ".[$i].function.name")
     tool_args=$(print -r -- "$tool_calls_json" | jq -r ".[$i].function.arguments | if type == \"string\" then . else tojson end")
-    norm_args=$(print -r -- "$tool_args" | jq -c -S . 2>/dev/null || echo "$tool_args")
+    args_rewritten=0
+    tool_output=""
 
-    if [[ "$tool_name" == "$last_tool" && "$norm_args" == "$last_args" ]]; then
-      ((repeat_count++))
-    else
-      last_tool="$tool_name"
-      last_args="$norm_args"
-      repeat_count=1
+    hook_payload=$(jq -n \
+      --arg event "tool_call" \
+      --arg tool_name "$tool_name" \
+      --argjson tool_args "$tool_args" \
+      --argjson step "$current_step" \
+      '{event: $event, tool_name: $tool_name, tool_args: $tool_args, step: $step}' 2>/dev/null ||
+      jq -n \
+        --arg event "tool_call" \
+        --arg tool_name "$tool_name" \
+        --arg tool_args "$tool_args" \
+        --argjson step "$current_step" \
+        '{event: $event, tool_name: $tool_name, tool_args: $tool_args, step: $step}' 2>/dev/null)
+
+    hook_res=$(_zshai_hook "tool_call" "$hook_payload")
+    hook_action=$(print -r -- "$hook_res" | jq -r '.action // empty' 2>/dev/null)
+    if [[ "$hook_action" == "rewrite_args" ]]; then
+      tool_args=$(print -r -- "$hook_res" | jq -c '.args | if type == "string" then (fromjson? // .) else . end' 2>/dev/null)
+      args_rewritten=1
+    elif [[ "$hook_action" == "skip" ]]; then
+      reason=$(print -r -- "$hook_res" | jq -r '.reason // "by hook"' 2>/dev/null)
+      tool_output="[Tool execution skipped: ${reason}]"
+      ((quiet == 0)) && print -u2 -P -- "%F{yellow}[Tool execution skipped: ${reason}]%f"
+    elif [[ "$hook_action" == "stop" ]]; then
+      reason=$(print -r -- "$hook_res" | jq -r '.reason // "by hook"' 2>/dev/null)
+      tool_output="[Tool execution stopped: ${reason}]"
+      ((quiet == 0)) && print -u2 -P -- "%F{yellow}[Tool execution stopped: ${reason}]%f"
+      transcript=$(print -r -- "$transcript" | jq \
+        --arg id "$tool_id" \
+        --arg name "$tool_name" \
+        --arg content "$tool_output" \
+        '. + [{"role": "tool", "tool_call_id": $id, "name": $name, "content": $content}]')
+      break
     fi
 
-    tool_output=""
-    if ((repeat_count >= 3)); then
-      tool_output="Repetition guard: tool '$tool_name' called 3 times consecutively with identical arguments. Stop repeating and adjust your strategy."
-      ((quiet == 0)) && print -u2 -P -- "%F{yellow}[Repetition guard triggered: tool '$tool_name' repeated 3 times]%f"
-    else
-      ((quiet == 0)) && print -u2 -P -- "%F{cyan}▶ ${tool_name}%f %F{242}${tool_args}%f"
-      tool_output="$(_zshai_tools exec "$tool_name" "$tool_args")"
+    if [[ -z "$tool_output" ]]; then
+      if [[ "$tool_name" == "bash" && "$args_rewritten" -eq 0 ]]; then
+        tool_args=$(_zshai_engine_rtk_rewrite "$tool_args")
+      fi
+
+      norm_args=$(print -r -- "$tool_args" | jq -c -S . 2>/dev/null || echo "$tool_args")
+      if [[ "$tool_name" == "$last_tool" && "$norm_args" == "$last_args" ]]; then
+        ((repeat_count++))
+      else
+        last_tool="$tool_name"
+        last_args="$norm_args"
+        repeat_count=1
+      fi
+
+      if ((repeat_count >= 3)); then
+        tool_output="Repetition guard: tool '$tool_name' called 3 times consecutively with identical arguments. Stop repeating and adjust your strategy."
+        ((quiet == 0)) && print -u2 -P -- "%F{yellow}[Repetition guard triggered: tool '$tool_name' repeated 3 times]%f"
+      else
+        ((quiet == 0)) && print -u2 -P -- "%F{cyan}▶ ${tool_name}%f %F{242}${tool_args}%f"
+        tool_output="$(_zshai_tools exec "$tool_name" "$tool_args")"
+        result_payload=$(jq -n \
+          --arg event "tool_result" \
+          --arg tool_name "$tool_name" \
+          --argjson tool_args "$tool_args" \
+          --arg output "$tool_output" \
+          --argjson step "$current_step" \
+          '{event: $event, tool_name: $tool_name, tool_args: $tool_args, output: $output, step: $step}' 2>/dev/null ||
+          jq -n \
+            --arg event "tool_result" \
+            --arg tool_name "$tool_name" \
+            --arg tool_args "$tool_args" \
+            --arg output "$tool_output" \
+            --argjson step "$current_step" \
+            '{event: $event, tool_name: $tool_name, tool_args: $tool_args, output: $output, step: $step}' 2>/dev/null)
+        hook_res=$(_zshai_hook "tool_result" "$result_payload")
+        hook_action=$(print -r -- "$hook_res" | jq -r '.action // empty' 2>/dev/null)
+        if [[ "$hook_action" == "rewrite_result" ]]; then
+          tool_output=$(print -r -- "$hook_res" | jq -r '.result // empty' 2>/dev/null)
+        fi
+      fi
     fi
 
     transcript=$(print -r -- "$transcript" | jq \
@@ -197,7 +274,7 @@ _zshai_engine_init_transcript() {
 }
 
 _zshai_engine() {
-  autoload -Uz _zshai_config _zshai_config_get _zshai_context _zshai_tools _zshai_provider 2>/dev/null
+  autoload -Uz _zshai_config _zshai_config_get _zshai_context _zshai_hook _zshai_prune _zshai_tools _zshai_provider 2>/dev/null
 
   local user_prompt="" transcript="" step_limit=""
   local enable_tools=1 quiet=0 verbose=0
@@ -242,6 +319,7 @@ _zshai_engine() {
       return 1
     fi
 
+    transcript=$(_zshai_prune "$transcript")
     response="$(_zshai_provider call "$transcript" "$tools_json")"
     prov_status=$?
     if ((prov_status != 0)) || [[ -z "$response" ]]; then
@@ -276,7 +354,7 @@ _zshai_engine() {
     assistant_msg=$(jq -n --argjson tc "$tool_calls_json" '{role: "assistant", tool_calls: $tc}')
     transcript=$(print -r -- "$transcript" | jq --argjson msg "$assistant_msg" '. + [$msg]')
 
-    _zshai_engine_exec_calls "$tool_calls_json" "$quiet"
+    _zshai_engine_exec_calls "$tool_calls_json" "$quiet" "$step"
 
     ((step++))
   done
