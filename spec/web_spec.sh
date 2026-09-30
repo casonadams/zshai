@@ -5,8 +5,8 @@ Describe "web documentation and GitHub Pages assets"
         grep -q '<title>zshai' "${SHELLSPEC_PROJECT_ROOT}/www/index.html" &&
         grep -q 'id="playground"' "${SHELLSPEC_PROJECT_ROOT}/www/index.html" &&
         grep -q 'id="architecture"' "${SHELLSPEC_PROJECT_ROOT}/www/index.html" &&
-        grep -q 'id="prerequisites"' "${SHELLSPEC_PROJECT_ROOT}/www/index.html" &&
         grep -q 'id="tools"' "${SHELLSPEC_PROJECT_ROOT}/www/index.html" &&
+        grep -q 'id="quality"' "${SHELLSPEC_PROJECT_ROOT}/www/index.html" &&
         grep -q 'id="config"' "${SHELLSPEC_PROJECT_ROOT}/www/index.html" &&
         echo "valid"
     }

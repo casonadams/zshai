@@ -6,27 +6,15 @@ prompt line buffer integration) and an autonomous standalone CLI executable.
 
 ## Prerequisites
 
-### Required
+### Required (Runtime)
 
 - [**Zsh 5.8+**](https://www.zsh.org/)
-- [**`curl`**](https://curl.se/): For HTTP/SSE streaming and provider
-  communication
-- [**`jq`**](https://jqlang.github.io/jq/): For high-performance JSON stream
-  processing and argument parsing
+- [**`curl`**](https://curl.se/): For HTTP/SSE streaming and provider communication
+- [**`jq`**](https://jqlang.github.io/jq/): For high-performance JSON stream processing and argument parsing
 
-### Optional Enhancements
+### Optional Runtime Enhancements
 
-- [**`glow`**](https://github.com/charmbracelet/glow) or
-  [**`mdcat`**](https://github.com/swsnr/mdcat): When present on `$PATH`,
-  `zshai` automatically formats non-streamed terminal output with rich Markdown
-  rendering (set `ZSHAI_RENDER=0` to force raw text).
-- [**`shellspec`**](https://shellspec.info/): For executing the BDD test suite
-  (`spec/*_spec.sh`).
-- [**`ripwire`**](https://github.com/redhat-et/ripwire): For McCabe cyclomatic,
-  cognitive complexity, and CRAP score quality gates (`scripts/lint`).
-- [**`shfmt`**](https://github.com/mvdan/sh): For Zsh code formatting
-  conformance.
-
+- [**`glow`**](https://github.com/charmbracelet/glow) or [**`mdcat`**](https://github.com/swsnr/mdcat): When present on `$PATH`, `zshai` automatically formats non-streamed terminal output with rich Markdown rendering (set `ZSHAI_RENDER=0` to force raw text).
 ## Installation
 
 ### Standalone CLI
@@ -181,7 +169,15 @@ The harness provides 5 built-in coding tools executed in dedicated subshells:
 - **Safe Mode**: When `--safe` or `ZSHAI_SAFE=1` is set, user confirmation is
   prompted before running `bash`, `write`, or `edit`.
 
-## Testing
+## Development, Testing & Quality Gates
+
+The following tools are used for running tests, linting, and CI gates (not required for runtime use):
+
+- [**`shellspec`**](https://shellspec.info/): For executing the BDD test suite (`spec/*_spec.sh`).
+- [**`ripwire`**](https://github.com/redhat-et/ripwire): For McCabe cyclomatic, cognitive complexity, clones, dead code, and CRAP score quality gates (`scripts/lint`).
+- [**`shfmt`**](https://github.com/mvdan/sh): For standard Zsh code formatting conformance (v3.10+).
+
+### Testing
 
 Run the full BDD test suite using ShellSpec:
 
@@ -195,11 +191,9 @@ Or via the test runner (which delegates to ShellSpec when installed):
 zsh test/verify_all.zsh
 ```
 
-## Linting & Quality Gates
+### Linting & Quality Gates
 
-Run the 3-stage quality check (syntax, format, and Ripwire complexity/CRAP
-scores):
-
+Run the 7-stage quality check (syntax, format, and Ripwire complexity/clones/dead-code/CRAP scores):
 ```zsh
 zshai lint
 # or

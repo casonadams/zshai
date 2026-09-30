@@ -41,8 +41,8 @@
       <ul class="nav-links">
         <li><a href="#playground" class="nav-link">Playground</a></li>
         <li><a href="#architecture" class="nav-link">Architecture</a></li>
-        <li><a href="#prerequisites" class="nav-link">Prerequisites</a></li>
         <li><a href="#tools" class="nav-link">Tools</a></li>
+        <li><a href="#quality" class="nav-link">Quality</a></li>
         <li><a href="#config" class="nav-link">Configuration</a></li>
       </ul>
 
@@ -111,17 +111,14 @@ export PATH="$HOME/.local/share/zshai/bin:$PATH"</code></pre>
 
       <!-- Prerequisites and Tooling Links -->
       <div class="prereqs-strip">
-        <span class="prereq-label">Prerequisites:</span>
+        <span class="prereq-label">Runtime:</span>
         <a href="https://www.zsh.org/" target="_blank" rel="noopener" class="prereq-link">Zsh 5.8+</a>
         <a href="https://curl.se/" target="_blank" rel="noopener" class="prereq-link">curl</a>
         <a href="https://jqlang.github.io/jq/" target="_blank" rel="noopener" class="prereq-link">jq</a>
         <span class="prereq-sep">&middot;</span>
-        <span class="prereq-label">Enhancements:</span>
+        <span class="prereq-label">Optional:</span>
         <a href="https://github.com/swsnr/mdcat" target="_blank" rel="noopener" class="prereq-link">mdcat</a>
         <a href="https://github.com/charmbracelet/glow" target="_blank" rel="noopener" class="prereq-link">glow</a>
-        <a href="https://github.com/redhat-et/ripwire" target="_blank" rel="noopener" class="prereq-link">ripwire</a>
-        <a href="https://shellspec.info/" target="_blank" rel="noopener" class="prereq-link">shellspec</a>
-        <a href="https://github.com/mvdan/sh" target="_blank" rel="noopener" class="prereq-link">shfmt</a>
       </div>
     </div>
   </header>
@@ -289,66 +286,51 @@ export PATH="$HOME/.local/share/zshai/bin:$PATH"</code></pre>
     </div>
   </section>
 
-  <!-- Prerequisites & Tooling Section -->
-  <section id="prerequisites" class="features-section">
+  <!-- Testing & Quality Gates Section -->
+  <section id="quality" class="features-section">
     <div class="container">
       <div class="section-header">
-        <div class="section-tag">Dependencies &amp; Tooling</div>
-        <h2 class="section-title">Prerequisites &amp; Ecosystem</h2>
-        <p class="section-subtitle">Zero compilation, zero package-manager runtimes. zshai depends strictly on standard CLI utilities native to POSIX/Unix environments.</p>
+        <div class="section-tag">Verification &amp; CI</div>
+        <h2 class="section-title">Testing &amp; Quality Gates</h2>
+        <p class="section-subtitle">Zero compromises on engineering discipline. Verified on every push and pull request via automated BDD specifications, AST complexity gates, and strict formatting.</p>
       </div>
 
-      <div class="prereqs-cards-grid">
-        <!-- Required Card -->
-        <div class="prereq-box">
-          <div class="prereq-box-header">
-            <span class="prereq-tag req-tag">Required</span>
-            <h3>Core Runtime</h3>
+      <div class="features-grid">
+        <div class="feature-card">
+          <div class="feature-icon-wrap icon-indigo">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M9 11l3 3L22 4"/>
+              <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+            </svg>
           </div>
-          <ul class="prereq-items-list">
-            <li>
-              <a href="https://www.zsh.org/" target="_blank" rel="noopener" class="tool-title-link">Zsh 5.8+</a>
-              <span class="tool-desc-text">Pure Zsh shell environment with ZLE line editor and parameter expansions.</span>
-            </li>
-            <li>
-              <a href="https://curl.se/" target="_blank" rel="noopener" class="tool-title-link">curl</a>
-              <span class="tool-desc-text">For HTTP/SSE streaming and provider communication.</span>
-            </li>
-            <li>
-              <a href="https://jqlang.github.io/jq/" target="_blank" rel="noopener" class="tool-title-link">jq</a>
-              <span class="tool-desc-text">For high-performance JSON stream processing and argument parsing.</span>
-            </li>
-          </ul>
+          <h3><a href="https://shellspec.info/" target="_blank" rel="noopener" style="color: inherit;">ShellSpec BDD Testing</a></h3>
+          <p>Comprehensive behavior-driven test suite (59+ specifications) covering core agent loops, tool subshells, ZLE widget binding, and provider adapters.</p>
+          <div style="margin-top: 0.85rem;"><code style="font-size: 0.8rem; background: var(--bg-surface-raised); padding: 0.25rem 0.5rem; border-radius: 4px; color: var(--accent-cyan);">test/verify_all.zsh</code></div>
         </div>
 
-        <!-- Optional Enhancements Card -->
-        <div class="prereq-box">
-          <div class="prereq-box-header">
-            <span class="prereq-tag opt-tag">Optional Enhancements</span>
-            <h3>Terminal &amp; Quality Tools</h3>
+        <div class="feature-card">
+          <div class="feature-icon-wrap icon-rose">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"/>
+              <line x1="12" y1="8" x2="12" y2="12"/>
+              <line x1="12" y1="16" x2="12.01" y2="16"/>
+            </svg>
           </div>
-          <ul class="prereq-items-list">
-            <li>
-              <div class="tool-title-wrap">
-                <a href="https://github.com/charmbracelet/glow" target="_blank" rel="noopener" class="tool-title-link">glow</a>
-                <span class="prereq-or-text">or</span>
-                <a href="https://github.com/swsnr/mdcat" target="_blank" rel="noopener" class="tool-title-link">mdcat</a>
-              </div>
-              <span class="tool-desc-text">When present on <code>$PATH</code>, automatically formats non-streamed terminal output with rich Markdown rendering (set <code>ZSHAI_RENDER=0</code> to force raw text).</span>
-            </li>
-            <li>
-              <a href="https://shellspec.info/" target="_blank" rel="noopener" class="tool-title-link">shellspec</a>
-              <span class="tool-desc-text">For executing the BDD test suite (<code>spec/*_spec.sh</code>).</span>
-            </li>
-            <li>
-              <a href="https://github.com/redhat-et/ripwire" target="_blank" rel="noopener" class="tool-title-link">ripwire</a>
-              <span class="tool-desc-text">For McCabe cyclomatic, cognitive complexity, clones, dead code, and CRAP score quality gates (<code>scripts/lint</code>).</span>
-            </li>
-            <li>
-              <a href="https://github.com/mvdan/sh" target="_blank" rel="noopener" class="tool-title-link">shfmt</a>
-              <span class="tool-desc-text">For standard Zsh code formatting conformance (v3.10+).</span>
-            </li>
-          </ul>
+          <h3><a href="https://github.com/redhat-et/ripwire" target="_blank" rel="noopener" style="color: inherit;">Ripwire Quality Gates</a></h3>
+          <p>AST analysis enforcing Cognitive Complexity &le; 30, Cyclomatic &le; 25, CRAP &le; 30, zero clone duplication, zero dead code, and zero doc drift.</p>
+          <div style="margin-top: 0.85rem;"><code style="font-size: 0.8rem; background: var(--bg-surface-raised); padding: 0.25rem 0.5rem; border-radius: 4px; color: var(--accent-rose);">scripts/lint</code></div>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon-wrap icon-cyan">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="16 18 22 12 16 6"/>
+              <polyline points="8 6 2 12 8 18"/>
+            </svg>
+          </div>
+          <h3><a href="https://github.com/mvdan/sh" target="_blank" rel="noopener" style="color: inherit;">shfmt Formatting</a></h3>
+          <p>Strict standard Zsh formatting conformance (v3.10+) ensuring consistent two-space indentation, case alignment, and clean syntax.</p>
+          <div style="margin-top: 0.85rem;"><code style="font-size: 0.8rem; background: var(--bg-surface-raised); padding: 0.25rem 0.5rem; border-radius: 4px; color: var(--accent-cyan);">shfmt -d -i 2 -ci -ln zsh</code></div>
         </div>
       </div>
     </div>
