@@ -428,16 +428,12 @@ code, pre {
 /* Quick Action Chips */
 .terminal-chips-bar {
   display: flex;
-  gap: 0.6rem;
-  margin-bottom: 1.25rem;
-  overflow-x: auto;
-  padding-bottom: 0.25rem;
-  scrollbar-width: none;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 0.65rem;
+  margin-bottom: 1.5rem;
 }
-.terminal-chips-bar::-webkit-scrollbar {
-  display: none;
-}
-
 .term-chip {
   display: inline-flex;
   align-items: center;
