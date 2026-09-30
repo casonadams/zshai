@@ -3,7 +3,7 @@ Describe "web documentation and GitHub Pages assets"
     check_html() {
       test -f "${SHELLSPEC_PROJECT_ROOT}/www/index.html" &&
         grep -q '<title>zshai' "${SHELLSPEC_PROJECT_ROOT}/www/index.html" &&
-        grep -q 'id="playground"' "${SHELLSPEC_PROJECT_ROOT}/www/index.html" &&
+        grep -q 'id="usage"' "${SHELLSPEC_PROJECT_ROOT}/www/index.html" &&
         grep -q 'id="architecture"' "${SHELLSPEC_PROJECT_ROOT}/www/index.html" &&
         grep -q 'id="tools"' "${SHELLSPEC_PROJECT_ROOT}/www/index.html" &&
         grep -q 'id="quality"' "${SHELLSPEC_PROJECT_ROOT}/www/index.html" &&
@@ -30,7 +30,7 @@ Describe "web documentation and GitHub Pages assets"
       test -f "${SHELLSPEC_PROJECT_ROOT}/www/js/app.js" &&
         grep -q 'initTheme' "${SHELLSPEC_PROJECT_ROOT}/www/js/app.js" &&
         grep -q 'initInstallSwitcher' "${SHELLSPEC_PROJECT_ROOT}/www/js/app.js" &&
-        grep -q 'initTerminalPlayground' "${SHELLSPEC_PROJECT_ROOT}/www/js/app.js" &&
+        grep -q 'initCopyButtons' "${SHELLSPEC_PROJECT_ROOT}/www/js/app.js" &&
         echo "valid"
     }
     When call check_js

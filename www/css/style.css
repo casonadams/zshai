@@ -425,303 +425,100 @@ code, pre {
   margin: 0 auto;
   font-size: 1rem;
 }
-/* Quick Action Chips */
-.terminal-chips-bar {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  align-items: center;
-  gap: 0.65rem;
-  margin-bottom: 1.5rem;
+/* =========================================================================
+   Usage & Workflows Section
+   ========================================================================= */
+.usage-section {
+  padding: 3rem 0 5rem;
 }
-.term-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.45rem 0.9rem;
-  border-radius: var(--radius-full);
-  border: 1px solid var(--border-subtle);
+
+.usage-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+  gap: 1.5rem;
+  margin-top: 2rem;
+}
+
+.usage-card {
   background-color: var(--bg-surface);
-  color: var(--text-secondary);
-  font-size: 0.825rem;
-  font-weight: 500;
-  cursor: pointer;
-  white-space: nowrap;
-  transition: all 0.15s ease;
-}
-
-.term-chip:hover {
-  border-color: var(--accent-cyan);
-  color: var(--text-primary);
-  background-color: var(--bg-surface-raised);
-}
-
-.term-chip.active {
-  border-color: var(--accent-cyan);
-  background-color: var(--accent-cyan-dim);
-  color: var(--text-primary);
-  font-weight: 600;
-}
-
-.chip-badge {
-  font-size: 0.75rem;
-  color: var(--accent-cyan);
-  font-weight: 700;
-}
-
-/* Terminal Window Mockup */
-.terminal-container {
-  background-color: #060911;
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-lg);
-  overflow: hidden;
-  box-shadow: var(--shadow-lg);
+  padding: 1.75rem;
+  box-shadow: var(--shadow-sm);
   display: flex;
   flex-direction: column;
+  transition: transform 0.2s ease, border-color 0.2s ease;
 }
 
-[data-theme="light"] .terminal-container {
-  background-color: #0f172a;
-  border-color: #334155;
+.usage-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--accent-cyan);
 }
 
-.terminal-titlebar {
-  background-color: #0b101d;
-  border-bottom: 1px solid #172033;
-  padding: 0.75rem 1.25rem;
+.usage-card-header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 0.75rem;
-  user-select: none;
+  margin-bottom: 0.75rem;
 }
 
-[data-theme="light"] .terminal-titlebar {
-  background-color: #1e293b;
-  border-bottom-color: #334155;
+.usage-card-header h3 {
+  font-size: 1.15rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
 }
 
-.terminal-controls {
-  display: flex;
-  gap: 0.45rem;
-}
-
-.control-dot {
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-}
-
-.control-close { background-color: #ef4444; }
-.control-min { background-color: #f59e0b; }
-.control-max { background-color: #10b981; }
-
-.terminal-title {
-  font-size: 0.8rem;
-  font-weight: 600;
-  color: #94a3b8;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.terminal-status-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
+.usage-badge {
   font-size: 0.72rem;
-  font-family: var(--font-mono);
-  color: #38bdf8;
-  background-color: rgba(56, 189, 248, 0.1);
-  border: 1px solid rgba(56, 189, 248, 0.2);
+  font-weight: 700;
+  text-transform: uppercase;
   padding: 0.2rem 0.6rem;
   border-radius: var(--radius-full);
 }
 
-.status-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background-color: #10b981;
-  box-shadow: 0 0 6px #10b981;
-}
+.badge-blue { background-color: var(--accent-cyan-dim); color: var(--accent-cyan); }
+.badge-cyan { background-color: rgba(56, 189, 248, 0.15); color: #38bdf8; }
+.badge-purple { background-color: var(--accent-purple-dim); color: var(--accent-purple); }
+.badge-green { background-color: var(--accent-green-dim); color: var(--accent-green); }
 
-.terminal-screen {
-  padding: 1.5rem;
-  font-family: var(--font-mono);
+.usage-desc {
   font-size: 0.9rem;
-  line-height: 1.6;
-  height: 420px;
-  overflow-y: auto;
-  background-color: #060911;
-  color: #e2e8f0;
+  color: var(--text-secondary);
+  line-height: 1.55;
+  margin-bottom: 1rem;
 }
 
-[data-theme="light"] .terminal-screen {
-  background-color: #0f172a;
-  color: #f8fafc;
+.code-box {
+  position: relative;
+  background-color: #050810;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 1rem 1.25rem;
+  margin-top: auto;
 }
 
-.term-line {
-  margin-bottom: 0.4rem;
-  word-break: break-word;
+[data-theme="light"] .code-box {
+  background-color: #0b1120;
 }
 
-.term-prompt-user { color: #34d399; font-weight: 700; }
-.term-prompt-at { color: #64748b; }
-.term-prompt-host { color: #38bdf8; }
-.term-prompt-dir { color: #818cf8; font-weight: 600; }
-.term-prompt-git { color: #fbbf24; }
-.term-prompt-sym { color: #38bdf8; font-weight: 700; }
-.term-cmd-text { color: #f8fafc; font-weight: 600; }
-
-.term-agent-msg {
-  color: #c084fc;
-  font-weight: 600;
-  margin: 0.5rem 0 0.3rem;
+.code-box pre {
+  margin: 0;
+  overflow-x: auto;
 }
 
-.term-info-text { color: #94a3b8; }
-.term-dim-text { color: #475569; }
-.term-success-text { color: #34d399; }
-
-/* Tool Call Card */
-.tool-call-card {
-  background-color: rgba(15, 23, 42, 0.7);
-  border: 1px solid rgba(56, 189, 248, 0.2);
-  border-left: 3px solid #38bdf8;
-  border-radius: var(--radius-sm);
-  padding: 0.65rem 0.85rem;
-  margin: 0.6rem 0;
-  font-size: 0.85rem;
-}
-
-.tool-card-header {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-weight: 600;
-  color: #f8fafc;
-  margin-bottom: 0.35rem;
-}
-
-.tool-card-tag {
-  font-size: 0.72rem;
-  font-weight: 700;
-  padding: 0.15rem 0.45rem;
-  border-radius: 3px;
-  text-transform: uppercase;
-}
-
-.tag-tool-read { background: rgba(56, 189, 248, 0.2); color: #38bdf8; }
-.tag-tool-edit { background: rgba(251, 191, 36, 0.2); color: #fbbf24; }
-.tag-tool-bash { background: rgba(52, 211, 153, 0.2); color: #34d399; }
-.tag-tool-web { background: rgba(192, 132, 252, 0.2); color: #c084fc; }
-
-.tool-diff-del { color: #f87171; background: rgba(248, 113, 113, 0.1); display: block; padding: 0.1rem 0.3rem; }
-.tool-diff-add { color: #34d399; background: rgba(52, 211, 153, 0.1); display: block; padding: 0.1rem 0.3rem; }
-
-/* Live Input Line */
-.terminal-input-bar {
-  background-color: #0b101d;
-  border-top: 1px solid #172033;
-  padding: 0.65rem 1.25rem;
-  display: flex;
-  align-items: center;
-  gap: 0.65rem;
-}
-
-[data-theme="light"] .terminal-input-bar {
-  background-color: #1e293b;
-  border-top-color: #334155;
-}
-
-.terminal-input-prompt {
+.code-box code {
   font-family: var(--font-mono);
   font-size: 0.85rem;
-  white-space: nowrap;
-  user-select: none;
-}
-
-.terminal-input-field {
-  flex: 1;
-  background: transparent;
-  border: none;
-  outline: none;
-  color: #f8fafc;
-  font-family: var(--font-mono);
-  font-size: 0.875rem;
-}
-
-.terminal-input-field::placeholder {
-  color: #475569;
-}
-
-.terminal-run-btn {
-  padding: 0.3rem 0.75rem;
-  font-family: var(--font-mono);
-  font-size: 0.75rem;
-  font-weight: 700;
-  border-radius: var(--radius-sm);
-  border: 1px solid rgba(56, 189, 248, 0.3);
-  background-color: var(--accent-cyan-dim);
   color: #38bdf8;
-  cursor: pointer;
-  transition: all 0.15s ease;
+  line-height: 1.6;
 }
 
-.terminal-run-btn:hover {
-  border-color: #38bdf8;
-  background-color: #38bdf8;
-  color: #090d16;
-}
-
-/* Terminal Footer Bar */
-.terminal-footer-bar {
-  background-color: #080c16;
-  border-top: 1px solid #131a29;
-  padding: 0.6rem 1.25rem;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 0.75rem;
-  font-size: 0.78rem;
-  color: #64748b;
-}
-
-[data-theme="light"] .terminal-footer-bar {
-  background-color: #162032;
-  border-top-color: #334155;
-  color: #94a3b8;
-}
-
-.terminal-metrics {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-}
-
-.terminal-actions {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.btn-term-action {
+.copy-mini-btn {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
   font-size: 0.75rem;
-  padding: 0.25rem 0.6rem;
-  border-radius: var(--radius-sm);
-  border: 1px solid #1e293b;
-  background: #0f172a;
-  color: #94a3b8;
-  cursor: pointer;
-  transition: all 0.15s ease;
-}
-
-.btn-term-action:hover {
-  border-color: #38bdf8;
-  color: #f8fafc;
+  padding: 0.2rem 0.55rem;
 }
 /* =========================================================================
    Features Grid

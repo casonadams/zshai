@@ -39,10 +39,10 @@
       </a>
 
       <ul class="nav-links">
-        <li><a href="#playground" class="nav-link">Playground</a></li>
+        <li><a href="#usage" class="nav-link">Usage</a></li>
         <li><a href="#architecture" class="nav-link">Architecture</a></li>
-        <li><a href="#tools" class="nav-link">Tools</a></li>
         <li><a href="#quality" class="nav-link">Quality</a></li>
+        <li><a href="#tools" class="nav-link">Tools</a></li>
         <li><a href="#config" class="nav-link">Configuration</a></li>
       </ul>
 
@@ -123,85 +123,74 @@ export PATH="$HOME/.local/share/zshai/bin:$PATH"</code></pre>
     </div>
   </header>
 
-  <!-- Interactive Terminal Playground -->
-  <section id="playground" class="playground-section">
+  <!-- Usage & Workflows Section -->
+  <section id="usage" class="usage-section">
     <div class="container">
       <div class="section-header">
-        <div class="section-tag">Interactive Playground</div>
-        <h2 class="section-title">Test zshai in Your Browser</h2>
-        <p class="section-subtitle">Click a scenario chip below or type commands directly into the terminal input line to experience autonomous tool execution, ZLE widget expansion, and multi-turn interaction.</p>
+        <div class="section-tag">Core Workflows</div>
+        <h2 class="section-title">Usage &amp; Interaction</h2>
+        <p class="section-subtitle">Operate zshai as an autonomous command-line agent, an interactive ZLE prompt widget, a multi-turn REPL, or a piped Unix pipeline filter.</p>
       </div>
 
-      <!-- Quick Action Scenario Chips -->
-      <div class="terminal-chips-bar">
-        <button class="term-chip active" data-scenario="agent" title="Autonomous coding agent fixing failing test">
-          <span class="chip-icon">⚡</span>
-          <span>Agent Loop</span>
-        </button>
-        <button class="term-chip" data-scenario="widget" title="ZLE prompt line buffer transformation via Ctrl+G">
-          <span class="chip-icon">✨</span>
-          <span>ZLE Widget (^G)</span>
-        </button>
-        <button class="term-chip" data-scenario="repl" title="Interactive multi-turn REPL session">
-          <span class="chip-icon">💬</span>
-          <span>Interactive REPL</span>
-        </button>
-        <button class="term-chip" data-scenario="websearch" title="DuckDuckGo web search tool integration">
-          <span class="chip-icon">🔍</span>
-          <span>Web Search</span>
-        </button>
-        <button class="term-chip" data-scenario="pipe" title="Piped standard input to conventional commit">
-          <span class="chip-icon">📝</span>
-          <span>Piped Git Diff</span>
-        </button>
-      </div>
-
-      <!-- Terminal Mockup Window -->
-      <div class="terminal-container">
-        <div class="terminal-titlebar">
-          <div class="terminal-controls">
-            <span class="control-dot control-close"></span>
-            <span class="control-dot control-min"></span>
-            <span class="control-dot control-max"></span>
+      <div class="usage-grid">
+        <!-- 1. One-Shot Execution -->
+        <div class="usage-card">
+          <div class="usage-card-header">
+            <span class="usage-badge badge-blue">CLI Execution</span>
+            <h3>One-Shot Agent Tasks</h3>
           </div>
-          <div class="terminal-title">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <polyline points="4 17 10 11 4 5"/>
-              <line x1="12" y1="19" x2="20" y2="19"/>
-            </svg>
-            <span id="termTitle">zshai ~ autonomous shell agent</span>
-          </div>
-          <div class="terminal-status-badge">
-            <span class="status-dot"></span>
-            <span id="termStatusBadge">qwen2.5-coder:7b &middot; Ollama</span>
+          <p class="usage-desc">Pass a natural language instruction directly to execute autonomous multi-step tool loops:</p>
+          <div class="code-box">
+            <pre><code>zshai "Fix failing test in spec/adapters_spec.sh"
+zshai -m gpt-4o -s 10 "Refactor error handling in src/"</code></pre>
+            <button class="btn-copy copy-mini-btn" data-copy-text="zshai &quot;Fix failing test in spec/adapters_spec.sh&quot;">Copy</button>
           </div>
         </div>
 
-        <!-- Terminal Output Screen -->
-        <div id="terminalScreen" class="terminal-screen" role="region" aria-label="Interactive Terminal Output"></div>
-
-        <!-- Live Interactive Input Line -->
-        <form id="terminalInputForm" class="terminal-input-bar">
-          <div class="terminal-input-prompt">
-            <span class="p-user">cason</span><span class="p-at">@</span><span class="p-host">mac</span>:<span class="p-dir">~/zshai</span> <span class="p-git">(main ⚡)</span> <span class="p-sym">%</span>
+        <!-- 2. ZLE Prompt Widget -->
+        <div class="usage-card">
+          <div class="usage-card-header">
+            <span class="usage-badge badge-cyan">In-Shell ZLE</span>
+            <h3>Line-Editor Widget (^G)</h3>
           </div>
-          <input id="terminalInput" type="text" class="terminal-input-field" autocomplete="off" spellcheck="false" placeholder="Type a command (try: zshai, test, lint, help) or press Enter to run...">
-          <button type="submit" id="terminalRunBtn" class="terminal-run-btn" title="Run command">
-            <span>↵ Run</span>
-          </button>
-        </form>
-
-        <!-- Terminal Footer Bar -->
-        <div class="terminal-footer-bar">
-          <div class="terminal-metrics">
-            <span class="metric-item">Model: <strong id="termFooterModel">qwen2.5-coder:7b</strong></span>
-            <span class="metric-item">Context: <strong id="termFooterCtx">32,768 tokens</strong></span>
-            <span class="metric-item">Warm Startup: <strong>&lt; 0.8 ms</strong></span>
+          <p class="usage-desc">Type your natural intent directly at your Zsh prompt and press <code>Ctrl+G</code> to transform the buffer in place:</p>
+          <div class="code-box">
+            <pre><code># 1. Type intent at prompt:
+find all markdown files larger than 1MB
+# 2. Press Ctrl+G (^G) &mdash; buffer transforms in place:
+find . -name "*.md" -size +1M</code></pre>
+            <button class="btn-copy copy-mini-btn" data-copy-text="bindkey '^G' zshai-widget">Copy</button>
           </div>
-          <div class="terminal-actions">
-            <button type="button" id="termReplayBtn" class="btn-term-action" title="Replay current scenario animation">↺ Replay</button>
-            <button type="button" id="termClearBtn" class="btn-term-action" title="Clear terminal screen">Clear</button>
-            <button type="button" id="termCopyBtn" class="btn-term-action" title="Copy terminal output">Copy Output</button>
+        </div>
+
+        <!-- 3. Interactive REPL -->
+        <div class="usage-card">
+          <div class="usage-card-header">
+            <span class="usage-badge badge-purple">Interactive</span>
+            <h3>Multi-Turn REPL Shell</h3>
+          </div>
+          <p class="usage-desc">Launch an interactive session with full conversation memory, tool execution, and slash commands:</p>
+          <div class="code-box">
+            <pre><code>$ zshai
+zshai&gt; /model claude-3-7-sonnet-20250219
+zshai&gt; /thinking high
+zshai&gt; inspect package.json and summarize main dependencies
+zshai&gt; /exit</code></pre>
+            <button class="btn-copy copy-mini-btn" data-copy-text="zshai">Copy</button>
+          </div>
+        </div>
+
+        <!-- 4. Piped Context -->
+        <div class="usage-card">
+          <div class="usage-card-header">
+            <span class="usage-badge badge-green">Unix Pipeline</span>
+            <h3>Piped Standard Input</h3>
+          </div>
+          <p class="usage-desc">Pipe log files, git diffs, or compiler diagnostics directly into zshai as contextual input:</p>
+          <div class="code-box">
+            <pre><code>cat error.log | zshai "Diagnose the root cause of this failure"
+git diff | zshai "Draft conventional commit message for these changes"</code></pre>
+            <button class="btn-copy copy-mini-btn" data-copy-text="git diff | zshai &quot;Draft conventional commit message for these changes&quot;">Copy</button>
           </div>
         </div>
       </div>
