@@ -95,6 +95,22 @@ in_b { cmd = cmd (length(cmd) > 0 ? "\n" : "") $0; }
       }]')
     fi
   fi
+  if [[ -n "$tool_calls_json" && "$tool_calls_json" != "[]" ]]; then
+    tool_calls_json=$(print -r -- "$tool_calls_json" | jq -c '
+      map(
+        if .function.name == "bash" or .function.name == "read" or .function.name == "write" or .function.name == "edit" or .function.name == "websearch" then
+          .
+        elif .function.name == "echo" or .function.name == "cat" or .function.name == "ls" or .function.name == "pwd" or .function.name == "grep" then
+          .function = {
+            name: "bash",
+            arguments: {command: "\(.function.name) \(.function.arguments | if type == "string" then . else tojson end)"} | tojson
+          }
+        else
+          empty
+        end
+      ) | if length > 0 then . else empty end
+    ' 2>/dev/null)
+  fi
 
   print -r -- "$tool_calls_json"
 }
