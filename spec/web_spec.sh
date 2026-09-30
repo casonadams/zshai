@@ -59,4 +59,34 @@ Describe "web documentation and GitHub Pages assets"
     When call check_workflow
     The output should eq "valid"
   End
+
+  It "enforces parity between README.md and www/index.html configuration and tools"
+    check_parity() {
+      local readme="${SHELLSPEC_PROJECT_ROOT}/README.md"
+      local web="${SHELLSPEC_PROJECT_ROOT}/www/index.html"
+      test -f "$readme" && test -f "$web" || return 1
+
+      # Every ZSHAI_* variable in README.md must be present in www/index.html
+      local var
+      for var in $(grep -oE 'ZSHAI_[A-Z0-9_]+' "$readme" | sort -u); do
+        if ! grep -q "$var" "$web"; then
+          echo "missing-var: $var"
+          return 1
+        fi
+      done
+
+      # Every tool in README.md must be present in www/index.html
+      local tool
+      for tool in bash read write edit; do
+        if ! grep -q "class=\"tool-badge\">$tool<" "$web"; then
+          echo "missing-tool: $tool"
+          return 1
+        fi
+      done
+
+      echo "in-sync"
+    }
+    When call check_parity
+    The output should eq "in-sync"
+  End
 End

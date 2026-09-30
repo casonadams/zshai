@@ -70,6 +70,24 @@
      after their primary symbol. No `.zsh` files or symlinks inside
      `functions/`.
 
+5. **Documentation & Website Synchronization (Doc/Web Parity)**:
+   - `README.md` and `www/index.html` must always be updated together in the same
+     change whenever CLI options, environment variables (`ZSHAI_*`), built-in
+     tools, or installation instructions change.
+   - **Ripwire Situational Awareness & Co-Change**:
+     Run `ripwire . --situ` before committing to detect forgotten co-change
+     partners (Shotgun Surgery) across documentation and web assets.
+   - **Ripwire Doc Drift**:
+     Run `ripwire . --doc-drift` to confirm all code anchors and symbols
+     referenced in documentation remain valid against live definitions.
+   - **Ripwire Mentions**:
+     Run `ripwire . --mentions=<symbol>` when altering public functions or
+     variables to identify every doc section that requires an update.
+   - **Automated Parity Gate**:
+     `spec/web_spec.sh` enforces that all configuration variables and tools in
+     `README.md` are documented in `www/index.html`. CI will fail if parity
+     breaks.
+
 ---
 
 ## Testing & Quality Gates

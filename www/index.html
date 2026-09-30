@@ -373,6 +373,31 @@ export PATH="$HOME/.local/share/zshai/bin:$PATH"</code></pre>
                   <td><code>0</code></td>
                   <td>Max agent execution steps (0=unlimited)</td>
                 </tr>
+                <tr>
+                  <td><code>ZSHAI_MAX_TOKENS</code></td>
+                  <td><code>64000</code></td>
+                  <td>Max output tokens (clamped per model)</td>
+                </tr>
+                <tr>
+                  <td><code>ZSHAI_NUM_CTX</code></td>
+                  <td><code>auto</code></td>
+                  <td>Context window limit (discovered from Ollama)</td>
+                </tr>
+                <tr>
+                  <td><code>ZSHAI_STREAM</code></td>
+                  <td><code>1</code></td>
+                  <td>Stream tokens live in interactive terminal</td>
+                </tr>
+                <tr>
+                  <td><code>ZSHAI_TIMEOUT</code></td>
+                  <td><code>60</code></td>
+                  <td>HTTP request timeout in seconds</td>
+                </tr>
+                <tr>
+                  <td><code>ZSHAI_BIND_DEFAULT</code></td>
+                  <td><code>0</code></td>
+                  <td>Forces binding ^G to zshai-widget</td>
+                </tr>
               </tbody>
             </table>
           </div>
